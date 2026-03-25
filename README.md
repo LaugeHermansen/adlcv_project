@@ -8,7 +8,7 @@ How should we generate data? We have two key questions we need to answer:
 ### Ideas for aggregation:
 * Simple/Naive solution:
   * for each pixel $i$ in the image, compute
-  $$p_i = \frac{\text{\#bounding boxes countaining}}{\text{\#total bounding boxes}}$$
+  $$p_i = \frac{\text{number of bounding boxes countaining pixel $i$}}{\text{total number of bounding boxes in the image}}$$
   * Example, if we have in total 3 bounding boxes:
   ![alt text](image.png)
 * 
