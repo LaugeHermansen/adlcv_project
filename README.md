@@ -1,0 +1,1 @@
+How to run scripts: setup environment, do `export PYTHONPATH=.` and run scripts as Python modules.
