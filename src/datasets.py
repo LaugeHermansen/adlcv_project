@@ -1,3 +1,5 @@
+import os
+from time import perf_counter
 import numpy as np
 import pandas as pd
 import torch
@@ -7,32 +9,46 @@ from PIL import Image
 from torch.utils.data import Dataset
 from datasets import load_dataset
 
-from src.globals import HF_CACHE_DIR, PLACES365_ROOT
+from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT
 
 
 class HiddenObjectsBase(Dataset):
-    def __init__(self, split="train", image_size=512):
+    def __init__(self, split="train", use_trimmed=None):
+        """
+        split: 'train' or 'test'
+        """
+        self.split = split
         self.hf_data = load_dataset(
             "marco-schouten/hidden-objects",
             split=split,
             cache_dir=HF_CACHE_DIR,
             streaming=False,
         )
+        if use_trimmed is None:
+            if os.path.exists(PLACES365_TRIMMED_ROOT):
+                self.image_root = PLACES365_TRIMMED_ROOT
+            elif os.path.exists(PLACES365_ROOT):
+                self.image_root = PLACES365_ROOT
+            else:
+                raise FileNotFoundError
 
-        self.image_size = image_size
+        self.image_size = 512
         self.transform = T.Compose([
-            T.Resize(image_size),
-            T.CenterCrop(image_size),
+            T.Resize(self.image_size),
+            T.CenterCrop(self.image_size),
             T.ToTensor(),
         ])
 
     def _load_image(self, bg_path):
-        img_path = PLACES365_ROOT / str(bg_path)
-        return self.transform(Image.open(img_path).convert("RGB"))
+        img_path = self.image_root / str(bg_path)
+        img = Image.open(img_path)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        return self.transform(img)
 
 class HiddenObjects(HiddenObjectsBase):
-    def __init__(self, split="train", image_size=512):
-        super().__init__(split=split, image_size=image_size)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def __len__(self):
         return len(self.hf_data)
@@ -52,13 +68,20 @@ class HiddenObjects(HiddenObjectsBase):
         }
 
 class HiddenObjectsImageLevel(HiddenObjectsBase):
-    def __init__(self, split="train", image_size=512):
-        super().__init__(split=split, image_size=image_size)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-        bg_paths = np.asarray(self.hf_data["bg_path"])
+        # load all annotations in at once since arrow indexing turned out to be EXTREMELY slow, both in __init__ and __getitem__.
+        # e.g. on the test split, even just this shows how ineffective the hf data is at retrieving values
+        #   5.726876s:  np.asarray(self.hf_data["bg_path"])
+        #   0.184582s:  self.df = self.hf_data.to_pandas()
+        #   0.000072s:  np.asarray(self.df["bg_path"])
+        # conclusion: get away from that HF format as soon as possible!
+        self.df = self.hf_data.to_pandas()
+        bg_paths = np.asarray(self.df["bg_path"])
         bg_codes, unique_bg_paths = pd.factorize(bg_paths, sort=False)
 
-        order = np.argsort(bg_codes, kind="mergesort")
+        order = np.argsort(bg_codes)
         sorted_codes = bg_codes[order]
 
         _, starts, counts = np.unique(
@@ -79,36 +102,37 @@ class HiddenObjectsImageLevel(HiddenObjectsBase):
     def __getitem__(self, idx):
         bg_path = self.unique_bg_paths[idx]
         row_idx = self.order[self.starts[idx]:self.ends[idx]]
+        anns = self.df.iloc[row_idx]
 
-        anns = self.hf_data.select(row_idx.tolist())
         image = self._load_image(bg_path)
 
-        boxes = torch.tensor(anns["bbox"], dtype=torch.float32) * self.image_size
-        labels = torch.tensor(anns["label"], dtype=torch.long)
-        confidences = torch.tensor(anns["confidence"], dtype=torch.float32)
-        reward_scores = torch.tensor(anns["image_reward_score"], dtype=torch.float32)
-        entry_ids = torch.tensor(anns["entry_id"], dtype=torch.long)
+        boxes = torch.tensor(np.vstack(anns["bbox"].to_numpy()), dtype=torch.float32) * self.image_size
+        labels = torch.tensor(anns["label"].to_numpy(), dtype=torch.long)
+        confidences = torch.tensor(anns["confidence"].to_numpy(), dtype=torch.float32)
+        reward_scores = torch.tensor(anns["image_reward_score"].to_numpy(), dtype=torch.float32)
+        entry_ids = torch.tensor(anns["entry_id"].to_numpy(), dtype=torch.long)
 
         return {
             "image": image,
             "bg_path": str(bg_path),
             "boxes": boxes,
             "labels": labels,
-            "classes": anns["fg_class"],
+            "classes": anns["fg_class"].to_numpy(),
             "confidences": confidences,
             "image_reward_scores": reward_scores,
-            "sources": anns["source"],
+            "sources": anns["source"].to_numpy(),
             "entry_ids": entry_ids,
         }
 
 class HiddenObjectsImageClassLevel(HiddenObjectsBase):
-    def __init__(self, split="train", image_size=512):
-        super().__init__(split=split, image_size=image_size)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-        entry_ids = np.asarray(self.hf_data["entry_id"])
+        self.df = self.hf_data.to_pandas()
+        entry_ids = np.asarray(self.df["entry_id"])
         entry_codes, unique_entry_ids = pd.factorize(entry_ids, sort=False)
 
-        order = np.argsort(entry_codes, kind="mergesort")
+        order = np.argsort(entry_codes)
         sorted_codes = entry_codes[order]
 
         _, starts, counts = np.unique(
@@ -130,17 +154,17 @@ class HiddenObjectsImageClassLevel(HiddenObjectsBase):
         entry_id = self.unique_entry_ids[idx]
         row_idx = self.order[self.starts[idx]:self.ends[idx]]
 
-        anns = self.hf_data.select(row_idx.tolist())
+        anns = self.df.iloc[row_idx]
 
         # assumes one bg_path per entry_id group
-        bg_path = anns["bg_path"][0]
+        bg_path = anns.iloc[0]["bg_path"]
         image = self._load_image(bg_path)
 
-        boxes = torch.tensor(anns["bbox"], dtype=torch.float32) * self.image_size
-        labels = torch.tensor(anns["label"], dtype=torch.long)
-        confidences = torch.tensor(anns["confidence"], dtype=torch.float32)
-        reward_scores = torch.tensor(anns["image_reward_score"], dtype=torch.float32)
-        entry_ids = torch.tensor(anns["entry_id"], dtype=torch.long)
+        boxes = torch.tensor(np.vstack(anns["bbox"].to_numpy()), dtype=torch.float32) * self.image_size
+        labels = torch.tensor(anns["label"].to_numpy(), dtype=torch.long)
+        confidences = torch.tensor(anns["confidence"].to_numpy(), dtype=torch.float32)
+        reward_scores = torch.tensor(anns["image_reward_score"].to_numpy(), dtype=torch.float32)
+        entry_ids = torch.tensor(anns["entry_id"].to_numpy(), dtype=torch.long)
 
         return {
             "image": image,
@@ -148,9 +172,9 @@ class HiddenObjectsImageClassLevel(HiddenObjectsBase):
             "entry_id": int(entry_id),
             "boxes": boxes,
             "labels": labels,
-            "classes": anns["fg_class"],
+            "class": anns.iloc[0]["fg_class"],
             "confidences": confidences,
             "image_reward_scores": reward_scores,
-            "sources": anns["source"],
+            "sources": anns["source"].to_numpy(),
             "entry_ids": entry_ids,
         }
