@@ -1,5 +1,4 @@
 import os
-from time import perf_counter
 import numpy as np
 import pandas as pd
 import torch
@@ -178,3 +177,130 @@ class HiddenObjectsImageClassLevel(HiddenObjectsBase):
             "sources": anns["source"].to_numpy(),
             "entry_ids": entry_ids,
         }
+
+def get_bbox_weights(
+    sample,
+    use_only_positives=True,
+    use_reward_scores=False,
+) -> torch.Tensor:
+    weights = sample['confidences']
+
+    if use_only_positives:
+        weights = weights * sample['labels']
+
+    if use_reward_scores:
+        reward_scores = sample['image_reward_scores']
+        vmin = reward_scores.min()
+        vmax = reward_scores.max()
+        if vmin == vmax:
+            pass
+        else:
+            reward_scores = (reward_scores - vmin) / (vmax - vmin)
+            weights = weights * reward_scores
+
+    return weights
+
+class NaiveHeatmap:
+    def __call__(self, sample: dict) -> torch.Tensor:
+        image = sample["image"]
+        boxes = sample["boxes"]
+
+        _, H, W = image.shape
+        heatmap = torch.zeros((H, W))
+
+        weights = get_bbox_weights(sample)
+        boxes = boxes.round().to(int)
+
+        for box, weight in zip(boxes, weights):
+            if weight == 0:
+                continue
+
+            x, y, w, h = box
+            x0 = x.item()
+            y0 = y.item()
+            x1 = x0 + w.item()
+            y1 = y0 + h.item()
+            heatmap[y0:y1, x0:x1] += weight
+
+        return heatmap / (heatmap.max() + 1e-8)
+
+class BoxGaussianHeatmap:
+    def __init__(self, sigma_scale=0.35):
+        self.sigma_scale = sigma_scale
+        self.truncate_sigma = 4.0
+
+    def __call__(self, sample: dict) -> torch.Tensor:
+        image = sample["image"]
+        boxes = sample["boxes"]
+
+        _, H, W = image.shape
+        heatmap = torch.zeros((H, W))
+
+        weights = get_bbox_weights(sample)
+        boxes = boxes.round()
+
+        xs_full = torch.arange(W)
+        ys_full = torch.arange(H)
+
+        weights = get_bbox_weights(sample)
+
+        for box, weight in zip(boxes, weights):
+            if weight <= 0:
+                continue
+
+            x, y, w, h = box
+            cx = x + 0.5 * w
+            cy = y + 0.5 * h
+
+            sigma_x = self.sigma_scale * w
+            sigma_y = self.sigma_scale * h
+
+            radius_x = int(np.ceil(self.truncate_sigma * sigma_x))
+            radius_y = int(np.ceil(self.truncate_sigma * sigma_y))
+
+            x0 = max(0, int(np.floor(float(cx) - radius_x)))
+            x1 = min(W, int(np.ceil(float(cx) + radius_x + 1)))
+            y0 = max(0, int(np.floor(float(cy) - radius_y)))
+            y1 = min(H, int(np.ceil(float(cy) + radius_y + 1)))
+
+            xs = xs_full[x0:x1].view(1, -1)
+            ys = ys_full[y0:y1].view(-1, 1)
+
+            g = torch.exp(
+                -0.5 * (
+                    ((xs - cx) / sigma_x) ** 2 +
+                    ((ys - cy) / sigma_y) ** 2
+                )
+            )
+
+            heatmap[y0:y1, x0:x1] += weight * g
+
+        return heatmap / (heatmap.max() + 1e-8)
+
+class HiddenObjectsHeatmap(Dataset):
+    def __init__(
+        self,
+        split="train",
+        heatmap_fn=BoxGaussianHeatmap(),
+    ):
+        self.anno_dataset = HiddenObjectsImageClassLevel(split=split)
+        self.heatmap_fn = heatmap_fn
+
+    def __len__(self):
+        return len(self.anno_dataset)
+
+    def __getitem__(self, idx):
+        sample = self.anno_dataset[idx]
+        target = self.heatmap_fn(sample)
+
+        return {
+            **sample,
+            "heatmap": target,
+        }
+
+def heatmap_collate(batch):
+    return {
+        "image": torch.stack([sample["image"] for sample in batch], dim=0),
+        "heatmap": torch.stack([sample["heatmap"] for sample in batch], dim=0),
+        "class": [sample["class"] for sample in batch],
+    }
