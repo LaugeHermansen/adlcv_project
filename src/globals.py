@@ -1,6 +1,7 @@
 from pathlib import Path
+import os
 
-DATA_ROOT = Path('./data')
-HF_CACHE_DIR = DATA_ROOT
+DATA_ROOT = Path("/dtu/blackhole/10/169104/data/adlcv/")
+HF_CACHE_DIR = Path("/work3/s215225/hf_cache")
 PLACES365_ROOT = DATA_ROOT / 'Places365'
 PLACES365_TRIMMED_ROOT = DATA_ROOT / 'Places365_trimmed'
