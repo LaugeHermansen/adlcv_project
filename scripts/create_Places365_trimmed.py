@@ -2,7 +2,7 @@ import os
 import shutil
 from tqdm import tqdm
 
-from src.datasets import HiddenObjectsImageLevel
+from src.hidden_objects_dataset import HiddenObjectsImageLevel
 from src.globals import PLACES365_ROOT, PLACES365_TRIMMED_ROOT
 
 train = HiddenObjectsImageLevel(split='train')

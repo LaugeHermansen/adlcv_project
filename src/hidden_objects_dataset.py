@@ -1,4 +1,8 @@
+from pathlib import Path
+import sys
 import os
+import warnings
+
 import numpy as np
 import pandas as pd
 import torch
@@ -8,11 +12,14 @@ from PIL import Image
 from torch.utils.data import Dataset
 from datasets import load_dataset
 
-from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT
+sys.path.append(os.path.abspath("."))
+sys.path.append(os.path.abspath(".."))
+
+from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT, HEATMAPS_ROOT
 
 
 class HiddenObjectsBase(Dataset):
-    def __init__(self, split="train", use_trimmed=None):
+    def __init__(self, split="train", use_trimmed=None, image_size=512):
         """
         split: 'train' or 'test'
         """
@@ -31,7 +38,7 @@ class HiddenObjectsBase(Dataset):
             else:
                 raise FileNotFoundError
 
-        self.image_size = 512
+        self.image_size = image_size
         self.transform = T.Compose([
             T.Resize(self.image_size),
             T.CenterCrop(self.image_size),
@@ -178,6 +185,71 @@ class HiddenObjectsImageClassLevel(HiddenObjectsBase):
             "entry_ids": entry_ids,
         }
 
+
+class HiddenObjectsImageClassLevelFast(HiddenObjectsBase):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.df = self.hf_data.to_pandas()
+        entry_ids = np.asarray(self.df["entry_id"])
+        entry_codes, unique_entry_ids = pd.factorize(entry_ids, sort=False)
+
+        order = np.argsort(entry_codes)
+        sorted_codes = entry_codes[order]
+
+        _, starts, counts = np.unique(
+            sorted_codes,
+            return_index=True,
+            return_counts=True,
+        )
+        ends = starts + counts
+
+        self.unique_entry_ids = unique_entry_ids
+        self.order = order
+        self.starts = starts
+        self.ends = ends
+
+        self.bg_path_arr = self.df["bg_path"].to_numpy()
+        self.class_arr = self.df["fg_class"].to_numpy()
+        self.bbox_arr = self.df["bbox"].to_numpy()
+        self.label_arr = self.df["label"].to_numpy()
+        self.conf_arr = self.df["confidence"].to_numpy()
+        self.reward_arr = self.df["image_reward_score"].to_numpy()
+        self.entry_id_arr = self.df["entry_id"].to_numpy()
+        self.source_arr = self.df["source"].to_numpy()
+
+    def __len__(self):
+        return len(self.unique_entry_ids)
+
+    def __getitem__(self, idx):
+        idxs = self.order[self.starts[idx]:self.ends[idx]]
+
+        boxes = torch.from_numpy(np.vstack(self.bbox_arr[idxs])).float().mul_(self.image_size)
+        labels = torch.from_numpy(self.label_arr[idxs])
+        confidences = torch.from_numpy(self.conf_arr[idxs])
+        reward_scores = torch.from_numpy(self.reward_arr[idxs])
+        entry_ids = torch.from_numpy(self.entry_id_arr[idxs])
+
+        classes = self.class_arr[idxs]
+        sources = self.source_arr[idxs]
+
+        bg_path = self.bg_path_arr[idxs[0]]
+        image = self._load_image(bg_path)
+
+        return {
+            "image": image,
+            "bg_path": str(bg_path),
+            "entry_id": int(entry_ids[0]),
+            "boxes": boxes,
+            "labels": labels,
+            "class": classes[0],
+            "confidences": confidences,
+            "image_reward_scores": reward_scores,
+            "sources": sources,
+            "entry_ids": entry_ids,
+        }
+
+
 def get_bbox_weights(
     sample,
     use_only_positives=True,
@@ -281,21 +353,46 @@ class HiddenObjectsHeatmap(Dataset):
     def __init__(
         self,
         split="train",
+        image_size=512,
         heatmap_fn=BoxGaussianHeatmap(),
+        use_fast_dataset=True,
+        use_saved_heatmaps=True,
     ):
-        self.anno_dataset = HiddenObjectsImageClassLevel(split=split)
+        if use_fast_dataset:
+            self.anno_dataset = HiddenObjectsImageClassLevelFast(split=split, image_size=image_size)
+        else:
+            self.anno_dataset = HiddenObjectsImageClassLevel(split=split, image_size=image_size)
         self.heatmap_fn = heatmap_fn
+        self.use_saved_heatmaps = use_saved_heatmaps
 
     def __len__(self):
         return len(self.anno_dataset)
 
     def __getitem__(self, idx):
         sample = self.anno_dataset[idx]
-        target = self.heatmap_fn(sample)
+
+        bg_path = Path(sample["bg_path"])
+        heatmap_path = HEATMAPS_ROOT / f"{bg_path.with_suffix("")}_{sample['class']}.tiff"
+
+        if self.use_saved_heatmaps:
+            if heatmap_path.exists():
+                heatmap_img = Image.open(heatmap_path)
+                if heatmap_img.mode != "F":
+                    raise ValueError(f"Expected heatmap image to be grayscale, but got mode {heatmap_img.mode}")
+                heatmap = self.anno_dataset.transform(heatmap_img)
+            else:
+                warnings.warn(f"Heatmap image not found at {heatmap_path}, computing heatmap on the fly")   
+                heatmap = self.heatmap_fn(sample)
+                # save image for future use
+                heatmap_img = Image.fromarray((heatmap.numpy()), mode="F")
+                heatmap_path.parent.mkdir(parents=True, exist_ok=True)
+                heatmap_img.save(heatmap_path, compression="tiff_lzw")
+        else:
+            heatmap = self.heatmap_fn(sample)
 
         return {
             **sample,
-            "heatmap": target,
+            "heatmap": heatmap,
         }
 
 def heatmap_collate(batch):
@@ -304,3 +401,23 @@ def heatmap_collate(batch):
         "heatmap": torch.stack([sample["heatmap"] for sample in batch], dim=0),
         "class": [sample["class"] for sample in batch],
     }
+
+if __name__ == "__main__":
+    from tqdm import tqdm
+    ds = HiddenObjectsHeatmap(split="train", image_size=512, use_fast_dataset=True, use_saved_heatmaps=True)
+    ds_fast = HiddenObjectsHeatmap(split="train", image_size=512, use_fast_dataset=True, use_saved_heatmaps=False)
+    N = len(ds)
+    num_fracs = 1
+    start_fracs = np.linspace(0, 1, num_fracs + 1).round(5)
+    start_frac_idx = int(sys.argv[1])-1 if len(sys.argv) > 1 else 0
+    start_idx = int(N * start_fracs[int(start_frac_idx)])
+    end_idx = int(N * start_fracs[int(start_frac_idx) + 1])
+    print(f"Processing samples {start_idx} to {end_idx} out of {N} (start_frac={start_fracs[int(start_frac_idx)]}, end_frac={start_fracs[int(start_frac_idx) + 1]})")
+
+    for i in tqdm(range(start_idx, end_idx)):
+        sample_1 = ds[i]
+        # sample_2 = ds_fast[i]
+        # assert sample_1["bg_path"] == sample_2["bg_path"]
+        # assert sample_1["class"] == sample_2["class"]
+        # assert torch.allclose(sample_1["heatmap"], sample_2["heatmap"]), f"Heatmaps differ for sample {i} (bg_path={sample_1['bg_path']}, class={sample_1['class']})"
+        # assert torch.allclose(sample_1["image"], sample_2["image"]), f"Images differ for sample {i} (bg_path={sample_1['bg_path']}, class={sample_1['class']})"                                                                                               
