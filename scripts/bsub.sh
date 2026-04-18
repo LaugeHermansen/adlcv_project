@@ -13,7 +13,7 @@
 ### -- walltime limit --
 #BSUB -W 12:00
 ### -- email --
-#BSUB -u s214743@dtu.dk
+#BSUB -u s215160@dtu.dk
 ### -- send notification at start and completion --
 #BSUB -B
 #BSUB -N
