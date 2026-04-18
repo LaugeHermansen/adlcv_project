@@ -23,11 +23,14 @@
 
 mkdir -p /dtu/blackhole/10/169104/logs
 
-cd /zhome/<xx>/<x>/<id>/adlcv_project
+module load python3/3.11.11
+module load cuda/12.1
+
+cd /zhome/06/9/168972/Adv_DL_CV/adlcv_project
 
 # Point ./data at the blackhole data directory
 ln -sfn /dtu/blackhole/10/169104/data/adlcv ./data
 
-source /zhome/<xx>/<x>/<id>/venv/bin/activate
+source /zhome/06/9/168972/.venvs/fpADLCV/bin/activate
 
 PYTHONPATH=. python src/test_detr_pretrained.py
