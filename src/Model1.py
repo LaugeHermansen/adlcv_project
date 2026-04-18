@@ -13,7 +13,7 @@ from src._datasets import HiddenObjectsHeatmap, heatmap_collate
 from transformers import AutoImageProcessor, AutoModel
 import src.viz as viz
 import matplotlib.pyplot as plt
-from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT, DATA_ROOT
+from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT, DATA_ROOT, MODEL_SAVE_ROOT
 import random
 import time
 
@@ -253,7 +253,7 @@ def train(model, train_loader, optimizer, num_epochs=10, test_loader=None, save_
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            total_train_loss += loss.item()
+            total_train_loss += loss.item() 
         avg_train_loss = total_train_loss / len(train_loader)
         elapsed = time.time() - t0
 
@@ -304,7 +304,7 @@ def test_model(model, test_loader):
     print(f"Average Test Loss: {avg_loss:.4f}")
     return avg_loss
 
-def visualize_predictions(model, test_loader, num_samples=4, seed=42, object_name=None):
+def visualize_predictions(model, test_loader, num_samples=10, seed=42, object_name=None):
     rng = random.Random(seed)
     dataset = test_loader.dataset
     if object_name is not None:
@@ -343,6 +343,22 @@ def visualize_predictions(model, test_loader, num_samples=4, seed=42, object_nam
 
 
 
+def test_loading(batch_size=32):
+    # Dataset / DataLoader construction
+    t0 = time.time()
+    dataset = HiddenObjectsHeatmap(split="train")
+    loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                         collate_fn=heatmap_collate)
+    print(f"Dataset init: {time.time() - t0:.3f}s  ({len(dataset)} samples)")
+
+    # Time first 10 batches from DataLoader
+    loader_iter = iter(loader)
+    for i in range(10):
+        t0 = time.time()
+        _ = next(loader_iter)
+        print(f"Batch [{i}]: {time.time() - t0:.3f}s  (batch_size={batch_size})")
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -365,7 +381,7 @@ if __name__ == "__main__":
     num_epochs = args.num_epochs
     freeze_text_encoder = args.freeze_text_encoder
     freeze_vision_encoder = args.freeze_vision_encoder
-    device = args.device
+    device = args.device    
 
     lr = args.lr
 
@@ -375,6 +391,7 @@ if __name__ == "__main__":
     
     if args.load_model_path:
         model = HeatmapModel(device=device, freeze_text_encoder=freeze_text_encoder, freeze_vision_encoder=freeze_vision_encoder)
+        print("here")
         model.load_state_dict(torch.load(args.load_model_path, map_location=device))
         print(f"Model loaded from {args.load_model_path}")
     else:
@@ -388,7 +405,8 @@ if __name__ == "__main__":
     if mode == "train":
         print("Starting training...")
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-        save_path = DATA_ROOT / (args.save_model_path or "best_model.pth")
+        save_path = MODEL_SAVE_ROOT / (args.save_model_path or "best_model.pth")
+        save_path.parent.mkdir(parents=True, exist_ok=True)
         train(model, train_loader, optimizer, num_epochs=num_epochs, test_loader=test_loader, save_path=save_path)
     elif mode == "test":
             test_model(model, test_loader)
