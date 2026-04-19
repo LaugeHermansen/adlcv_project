@@ -11,14 +11,15 @@ from tqdm import tqdm
 from src.hidden_objects_dataset import HiddenObjectsImageClassLevelFast
 
 # --- Config ---
-SPLIT = "test"      # use test split locally (smaller)
+SPLIT      = "train"
 IMAGE_SIZE = 512
-BATCH_SIZE = 4
-MAX_GT = 50         # max positive boxes per sample to match against
-LR = 1e-4
-EPOCHS = 2
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-SAVE_PATH = "output/detr_placement.pt"
+BATCH_SIZE = 16
+MAX_GT     = 50
+LR         = 1e-4
+EPOCHS     = 10
+DEVICE     = "cuda" if torch.cuda.is_available() else "cpu"
+SAVE_PATH  = "output/detr_placement.pt"
+N_HEATMAPS = 10
 
 # Model: load, freeze, replace head
 def build_model():
@@ -119,23 +120,25 @@ def compute_loss(pred_boxes, pred_scores, targets):
     n = len(targets)
     return total_box_loss / n, total_score_loss / n
 
-def visualise_heatmaps(model, ds, n=4):
+def visualise_heatmaps(model, ds, n=N_HEATMAPS):
     import matplotlib.pyplot as plt
     from src.viz import prepare_image
-    import os
 
     model.eval()
     os.makedirs("output/heatmaps", exist_ok=True)
 
+    # One tall column image: each row = [background | heatmap] for one sample
+    fig, axes = plt.subplots(n, 2, figsize=(10, 5 * n))
+
     with torch.no_grad():
         for i in range(n):
             sample = ds[i]
-            image  = sample["image"].unsqueeze(0).to(DEVICE)  # (1, 3, H, W)
+            image  = sample["image"].unsqueeze(0).to(DEVICE)
 
-            outputs  = model.model(pixel_values=image)
-            seq_out  = outputs.last_hidden_state
-            pred_boxes  = model.bbox_predictor(seq_out).sigmoid()[0]   # (100, 4) normalised cxcywh
-            pred_scores = model.score_head(seq_out).squeeze(-1).sigmoid()[0]  # (100,)
+            outputs     = model.model(pixel_values=image)
+            seq_out     = outputs.last_hidden_state
+            pred_boxes  = model.bbox_predictor(seq_out).sigmoid()[0]        # (100, 4)
+            pred_scores = model.score_head(seq_out).squeeze(-1).sigmoid()[0] # (100,)
 
             # Build heatmap — paint each box weighted by its score
             heatmap = torch.zeros(IMAGE_SIZE, IMAGE_SIZE)
@@ -147,22 +150,21 @@ def visualise_heatmaps(model, ds, n=4):
                 x1 = min(IMAGE_SIZE, int(cx + w/2))
                 y1 = min(IMAGE_SIZE, int(cy + h/2))
                 heatmap[y0:y1, x0:x1] += score.item()
-
             heatmap = heatmap / (heatmap.max() + 1e-8)
 
             bg = prepare_image(sample["image"])
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-            fig.suptitle(f"class='{sample['class']}'")
-            axes[0].imshow(bg)
-            axes[0].set_title("Background")
-            axes[0].axis("off")
-            axes[1].imshow(heatmap.numpy(), cmap="jet")
-            axes[1].set_title("Predicted placement heatmap")
-            axes[1].axis("off")
-            plt.tight_layout()
-            plt.savefig(f"output/heatmaps/sample_{i}_{sample['class']}.png", dpi=120)
-            plt.close()
-            print(f"  Saved heatmap {i} → output/heatmaps/sample_{i}_{sample['class']}.png")
+            axes[i, 0].imshow(bg)
+            axes[i, 0].set_title(f"class='{sample['class']}'", fontsize=8)
+            axes[i, 0].axis("off")
+            axes[i, 1].imshow(heatmap.numpy(), cmap="jet")
+            axes[i, 1].set_title("predicted heatmap", fontsize=8)
+            axes[i, 1].axis("off")
+
+    plt.tight_layout()
+    out_path = "output/heatmaps/all_heatmaps.png"
+    plt.savefig(out_path, dpi=100, bbox_inches="tight")
+    plt.close()
+    print(f"  Saved → {out_path}")
 
 
 def main():
