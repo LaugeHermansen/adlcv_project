@@ -1,0 +1,35 @@
+Loaded dependency [python3/3.11.11]: sqlite3/3.49.0
+Loaded dependency [python3/3.11.11]: gcc/12.4.0-binutils-2.42
+Loaded module: python3/3.11.11
+
+Loading python3/3.11.11
+  Loading requirement: sqlite3/3.49.0 gcc/12.4.0-binutils-2.42
+Loaded module: cuda/12.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 218, in <module>
+    main()
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 172, in main
+    ds = HiddenObjectsImageClassLevelFast(split=SPLIT, image_size=IMAGE_SIZE)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/hidden_objects_dataset.py", line 191, in __init__
+    super().__init__(**kwargs)
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/hidden_objects_dataset.py", line 27, in __init__
+    self.hf_data = load_dataset(
+                   ^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/datasets/load.py", line 1688, in load_dataset
+    builder_instance = load_dataset_builder(
+                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/datasets/load.py", line 1353, in load_dataset_builder
+    builder_instance: DatasetBuilder = builder_cls(
+                                       ^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/datasets/builder.py", line 389, in __init__
+    with FileLock(lock_path):
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/filelock/_api.py", line 550, in __enter__
+    self.acquire()
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/filelock/_api.py", line 498, in acquire
+    self._acquire()
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/filelock/_unix.py", line 55, in _acquire
+    fd = os.open(self.lock_file, open_flags, open_mode)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: '/zhome/06/9/168972/Adv_DL_CV/adlcv_project/data/data_marco-schouten___hidden-objects_default_0.0.0_b4e63c6798ce9caffaf54960567bf943aba7cc39.lock'

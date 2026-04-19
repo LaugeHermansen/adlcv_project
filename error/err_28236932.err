@@ -1,0 +1,43 @@
+Loaded dependency [python3/3.11.11]: sqlite3/3.49.0
+Loaded dependency [python3/3.11.11]: gcc/12.4.0-binutils-2.42
+Loaded module: python3/3.11.11
+
+Loading python3/3.11.11
+  Loading requirement: sqlite3/3.49.0 gcc/12.4.0-binutils-2.42
+Loaded module: cuda/12.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 218, in <module>
+    main()
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 177, in main
+    model = build_model().to(DEVICE)
+            ^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 25, in build_model
+    detr = DetrForObjectDetection.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4072, in from_pretrained
+    loading_info, disk_offload_index = cls._load_pretrained_model(model, state_dict, checkpoint_files, load_config)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4187, in _load_pretrained_model
+    merged_state_dict.update(load_state_dict(ckpt_file))
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 319, in load_state_dict
+    check_torch_load_is_safe()
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/utils/import_utils.py", line 1220, in check_torch_load_is_safe
+    raise ValueError(
+ValueError: Due to a serious vulnerability issue in `torch.load`, even with `weights_only=True`, we now require users to upgrade torch to at least v2.6 in order to use the function. This version restriction does not apply when loading files with safetensors.
+See the vulnerability report here https://nvd.nist.gov/vuln/detail/CVE-2025-32434
+Exception in thread Thread-auto_conversion:
+Traceback (most recent call last):
+  File "/appl9/python/3.11.11/lib/python3.11/threading.py", line 1045, in _bootstrap_inner
+    self.run()
+  File "/appl9/python/3.11.11/lib/python3.11/threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/safetensors_conversion.py", line 117, in auto_conversion
+    raise e
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/safetensors_conversion.py", line 96, in auto_conversion
+    sha = get_conversion_pr_reference(api, pretrained_model_name_or_path, **cached_file_kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/safetensors_conversion.py", line 77, in get_conversion_pr_reference
+    raise OSError(
+OSError: Could not create safetensors conversion PR. The repo does not appear to have a file named pytorch_model.bin or model.safetensors.If you are loading with variant, use `use_safetensors=False` to load the original model.

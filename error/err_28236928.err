@@ -1,0 +1,48 @@
+Loaded dependency [python3/3.11.11]: sqlite3/3.49.0
+Loaded dependency [python3/3.11.11]: gcc/12.4.0-binutils-2.42
+Loaded module: python3/3.11.11
+
+Loading python3/3.11.11
+  Loading requirement: sqlite3/3.49.0 gcc/12.4.0-binutils-2.42
+Loaded module: cuda/12.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 144, in __strict_setattr__
+    validator(value)
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 625, in validator
+    type_validator(field.name, value, field.type)
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 472, in type_validator
+    _validate_simple_type(name, value, expected_type)
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 615, in _validate_simple_type
+    raise TypeError(
+TypeError: Field 'dilation' expected bool, got NoneType (value: None)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 218, in <module>
+    main()
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 177, in main
+    model = build_model().to(DEVICE)
+            ^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 25, in build_model
+    detr = DetrForObjectDetection.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4007, in from_pretrained
+    config, model_kwargs = cls.config_class.from_pretrained(
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/configuration_utils.py", line 650, in from_pretrained
+    return cls.from_dict(config_dict, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/configuration_utils.py", line 827, in from_dict
+    config = cls(**config_dict)
+             ^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 275, in init_with_validate
+    initial_init(self, *args, **kwargs)  # type: ignore [call-arg]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/configuration_utils.py", line 95, in __init__
+    setattr(self, f.name, standard_kwargs[f.name])
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/huggingface_hub/dataclasses.py", line 146, in __strict_setattr__
+    raise StrictDataclassFieldValidationError(field=name, cause=e) from e
+huggingface_hub.errors.StrictDataclassFieldValidationError: Validation error for field 'dilation':
+    TypeError: Field 'dilation' expected bool, got NoneType (value: None)

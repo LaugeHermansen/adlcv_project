@@ -1,0 +1,46 @@
+Loaded dependency [python3/3.11.11]: sqlite3/3.49.0
+Loaded dependency [python3/3.11.11]: gcc/12.4.0-binutils-2.42
+Loaded module: python3/3.11.11
+
+Loading python3/3.11.11
+  Loading requirement: sqlite3/3.49.0 gcc/12.4.0-binutils-2.42
+Loaded module: cuda/12.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 218, in <module>
+    main()
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 177, in main
+    model = build_model().to(DEVICE)
+            ^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 25, in build_model
+    detr = DetrForObjectDetection.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 4030, in from_pretrained
+    model = cls(config, *model_args, **model_kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/models/detr/modeling_detr.py", line 1305, in __init__
+    self.model = DetrModel(config)
+                 ^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/models/detr/modeling_detr.py", line 1115, in __init__
+    self.backbone = DetrConvEncoder(config)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/models/detr/modeling_detr.py", line 261, in __init__
+    backbone = load_backbone(config)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/backbone_utils.py", line 340, in load_backbone
+    backbone = AutoBackbone.from_config(config=backbone_config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/models/auto/auto_factory.py", line 238, in from_config
+    return model_class._from_config(config, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/modeling_utils.py", line 1474, in _from_config
+    model = cls(config, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/models/timm_backbone/modeling_timm_backbone.py", line 43, in __init__
+    requires_backends(self, "timm")
+  File "/zhome/06/9/168972/.venvs/fpADLCV/lib/python3.11/site-packages/transformers/utils/import_utils.py", line 1878, in requires_backends
+    raise ImportError("".join(failed))
+ImportError: 
+TimmBackbone requires the timm library but it was not found in your environment. You can install it with pip:
+`pip install timm`. Please note that you may need to restart your runtime after installation.
+

@@ -1,0 +1,14 @@
+Loaded dependency [python3/3.11.11]: sqlite3/3.49.0
+Loaded dependency [python3/3.11.11]: gcc/12.4.0-binutils-2.42
+Loaded module: python3/3.11.11
+
+Loading python3/3.11.11
+  Loading requirement: sqlite3/3.49.0 gcc/12.4.0-binutils-2.42
+Loaded module: cuda/12.1
+Traceback (most recent call last):
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/test_detr_pretrained.py", line 11, in <module>
+    from src.hidden_objects_dataset import HiddenObjectsImageClassLevelFast
+  File "/zhome/06/9/168972/Adv_DL_CV/adlcv_project/src/hidden_objects_dataset.py", line 375
+    heatmap_path = HEATMAPS_ROOT / f"{bg_path.with_suffix("")}_{sample['class']}.tiff"
+                                                                                      ^
+SyntaxError: f-string: unmatched '('

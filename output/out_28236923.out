@@ -1,0 +1,6 @@
+torch: 2.5.1+cu121
+cuda available: True
+gpu: Tesla V100-PCIE-16GB
+transformers: 5.5.4
+scipy: 1.17.1
+all packages ok

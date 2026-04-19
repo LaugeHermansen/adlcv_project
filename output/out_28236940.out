@@ -1,0 +1,11 @@
+Loading dataset...
+Building model...
+  Trainable params: 10,179,681
+Epoch 1 avg loss: 0.1497
+Epoch 2 avg loss: 0.1337
+Saved to output/detr_placement.pt
+Generating heatmaps...
+  Saved heatmap 0 → output/heatmaps/sample_0_sports ball.png
+  Saved heatmap 1 → output/heatmaps/sample_1_bottle.png
+  Saved heatmap 2 → output/heatmaps/sample_2_fork.png
+  Saved heatmap 3 → output/heatmaps/sample_3_spoon.png
