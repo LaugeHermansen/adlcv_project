@@ -23,7 +23,7 @@ SAVE_PATH = "output/detr_placement.pt"
 # Model: load, freeze, replace head
 def build_model():
     detr = DetrForObjectDetection.from_pretrained(
-        "facebook/detr-resnet-50", revision="no_timm", use_safetensors=False
+        "facebook/detr-resnet-50"
     )
 
     #Freeze backbone and encoder
