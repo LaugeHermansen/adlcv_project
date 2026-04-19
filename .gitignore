@@ -4,3 +4,5 @@ __pycache__/
 heatmap_outputs*/
 jobscript.sh
 bsub_outputs/output/
+*.pt
+*.pth

@@ -1,0 +1,16 @@
+Loading dataset...
+Building model...
+  Trainable params: 10,179,681
+Epoch 1 avg loss: 0.1370
+Epoch 2 avg loss: 0.1306
+Epoch 3 avg loss: 0.1281
+Epoch 4 avg loss: 0.1268
+Epoch 5 avg loss: 0.1253
+Epoch 6 avg loss: 0.1244
+Epoch 7 avg loss: 0.1235
+Epoch 8 avg loss: 0.1225
+Epoch 9 avg loss: 0.1215
+Epoch 10 avg loss: 0.1208
+Saved to output/detr_placement.pt
+Generating heatmaps...
+  Saved → output/heatmaps/all_heatmaps.png

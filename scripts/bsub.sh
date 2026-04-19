@@ -8,7 +8,7 @@
 ### -- specify that the cores must be on the same host --
 #BSUB -R "span[hosts=1]"
 #BSUB -R "rusage[mem=16GB]"
-#BSUB -M 17GB
+#BSUB -M 16GB
 ### -- walltime limit --
 #BSUB -W 12:00
 ### -- email --
