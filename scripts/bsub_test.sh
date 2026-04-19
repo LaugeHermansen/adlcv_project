@@ -25,12 +25,4 @@ module load cuda/12.1
 cd /zhome/06/9/168972/Adv_DL_CV/adlcv_project
 source /zhome/06/9/168972/.venvs/fpADLCV/bin/activate
 
-python -c "
-import torch
-print('torch:', torch.__version__)
-print('cuda available:', torch.cuda.is_available())
-print('gpu:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')
-import transformers; print('transformers:', transformers.__version__)
-import scipy; print('scipy:', scipy.__version__)
-print('all packages ok')
-"
+PYTHONPATH=. python src/test_detr_pretrained.py
