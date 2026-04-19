@@ -28,8 +28,17 @@ module load cuda/12.1
 
 cd /zhome/06/9/168972/Adv_DL_CV/adlcv_project
 
-# Point ./data at the blackhole data directory
-ln -sfn /dtu/blackhole/10/169104/data/adlcv ./data
+# Create a real data dir we own, then symlink only Places365 (read-only is fine)
+# HF cache stays inside our own data dir so we can write lock files
+mkdir -p /zhome/06/9/168972/Adv_DL_CV/adlcv_project/data
+ln -sfn /dtu/blackhole/10/169104/data/adlcv/Places365_trimmed \
+        /zhome/06/9/168972/Adv_DL_CV/adlcv_project/data/Places365_trimmed
+
+# Copy HF cache if not already there (2.3 GB, only runs once)
+if [ ! -d /zhome/06/9/168972/Adv_DL_CV/adlcv_project/data/marco-schouten___hidden-objects ]; then
+    cp -r /dtu/blackhole/10/169104/data/adlcv/marco-schouten___hidden-objects \
+          /zhome/06/9/168972/Adv_DL_CV/adlcv_project/data/
+fi
 
 source /zhome/06/9/168972/.venvs/fpADLCV/bin/activate
 
