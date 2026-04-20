@@ -10,7 +10,7 @@
 #BSUB -R "rusage[mem=16GB]"
 #BSUB -M 16GB
 ### -- walltime limit --
-#BSUB -W 12:00
+#BSUB -W 04:00
 ### -- email --
 #BSUB -u s215160@dtu.dk
 #BSUB -B
