@@ -238,8 +238,14 @@ def visualise_heatmaps(model, ds, class_to_idx, n=N_HEATMAPS):
     import matplotlib.pyplot as plt
     from src.viz import prepare_image
 
+    sigma_scale    = 0.35
+    truncate_sigma = 4.0
+
     model.eval()
     os.makedirs("output/heatmaps", exist_ok=True)
+
+    xs_full = torch.arange(IMAGE_SIZE)
+    ys_full = torch.arange(IMAGE_SIZE)
 
     fig, axes = plt.subplots(n, 2, figsize=(10, 5 * n))
 
@@ -252,27 +258,53 @@ def visualise_heatmaps(model, ds, class_to_idx, n=N_HEATMAPS):
             )
 
             pred_boxes, pred_scores = forward(model, image, class_idx)
-            pred_boxes  = pred_boxes[0]
-            pred_scores = pred_scores[0]
+            pred_boxes  = pred_boxes[0]   # (100, 4) normalised cxcywh
+            pred_scores = pred_scores[0]  # (100,)
 
             heatmap = torch.zeros(IMAGE_SIZE, IMAGE_SIZE)
             for (cx, cy, w, h), score in zip(pred_boxes, pred_scores):
+                # convert normalised → pixel space
                 cx = (cx * IMAGE_SIZE).item()
                 cy = (cy * IMAGE_SIZE).item()
                 w  = (w  * IMAGE_SIZE).item()
                 h  = (h  * IMAGE_SIZE).item()
-                x0 = max(0, int(cx - w/2))
-                y0 = max(0, int(cy - h/2))
-                x1 = min(IMAGE_SIZE, int(cx + w/2))
-                y1 = min(IMAGE_SIZE, int(cy + h/2))
-                heatmap[y0:y1, x0:x1] += score.item()
+
+                if w <= 0 or h <= 0:
+                    continue
+
+                sigma_x  = sigma_scale * w
+                sigma_y  = sigma_scale * h
+                radius_x = int(np.ceil(truncate_sigma * sigma_x))
+                radius_y = int(np.ceil(truncate_sigma * sigma_y))
+
+                x0 = max(0, int(np.floor(cx - radius_x)))
+                x1 = min(IMAGE_SIZE, int(np.ceil(cx + radius_x + 1)))
+                y0 = max(0, int(np.floor(cy - radius_y)))
+                y1 = min(IMAGE_SIZE, int(np.ceil(cy + radius_y + 1)))
+
+                xs = xs_full[x0:x1].view(1, -1)
+                ys = ys_full[y0:y1].view(-1, 1)
+
+                g = torch.exp(
+                    -0.5 * (
+                        ((xs - cx) / sigma_x) ** 2 +
+                        ((ys - cy) / sigma_y) ** 2
+                    )
+                )
+                heatmap[y0:y1, x0:x1] += score.item() * g
+
             heatmap = heatmap / (heatmap.max() + 1e-8)
 
             bg = prepare_image(sample["image"])
+
+            # Left column: background only
             axes[i, 0].imshow(bg)
             axes[i, 0].set_title(f"class='{sample['class']}'", fontsize=8)
             axes[i, 0].axis("off")
-            axes[i, 1].imshow(heatmap.numpy(), cmap="jet")
+
+            # Right column: background with heatmap overlaid
+            axes[i, 1].imshow(bg)
+            axes[i, 1].imshow(heatmap.numpy(), cmap="jet", alpha=0.5)
             axes[i, 1].set_title("predicted heatmap", fontsize=8)
             axes[i, 1].axis("off")
 

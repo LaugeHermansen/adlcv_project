@@ -4,13 +4,13 @@
 ### -- set the job Name --
 #BSUB -J detr_test
 ### -- ask for number of cores --
-#BSUB -n 1
+#BSUB -n 4
 ### -- specify that the cores must be on the same host --
 #BSUB -R "span[hosts=1]"
-#BSUB -R "rusage[mem=4GB]"
-#BSUB -M 4GB
+#BSUB -R "rusage[mem=16GB]"
+#BSUB -M 16GB
 ### -- walltime limit --
-#BSUB -W 00:10
+#BSUB -W 00:30
 ### -- email --
 #BSUB -u s215160@dtu.dk
 #BSUB -B
