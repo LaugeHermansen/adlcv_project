@@ -390,6 +390,9 @@ class HiddenObjectsHeatmap(Dataset):
         else:
             heatmap = self.heatmap_fn(sample)
 
+        if len(heatmap.shape) == 2:
+            heatmap = heatmap[None, :, :]
+
         return {
             **sample,
             "heatmap": heatmap,
