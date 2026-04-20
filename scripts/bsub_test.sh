@@ -25,4 +25,4 @@ module load cuda/12.1
 cd /zhome/06/9/168972/Adv_DL_CV/adlcv_project
 source /zhome/06/9/168972/.venvs/fpADLCV/bin/activate
 
-PYTHONPATH=. python src/test_detr_pretrained.py
+WANDB_MODE=online PYTHONPATH=. python src/test_detr_pretrained.py
