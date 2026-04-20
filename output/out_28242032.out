@@ -1,0 +1,17 @@
+Loading datasets...
+  Found 50 object classes
+Building model...
+  Trainable params: 10,192,481
+Epoch 1  train=0.1303  val=0.1130  (box=0.0514 score=0.0617)  recall@5@0.5=0.178  spearman=0.678
+Epoch 2  train=0.1153  val=0.1099  (box=0.0488 score=0.0611)  recall@5@0.5=0.194  spearman=0.690
+Epoch 3  train=0.1127  val=0.1075  (box=0.0472 score=0.0603)  recall@5@0.5=0.215  spearman=0.707
+Epoch 4  train=0.1108  val=0.1065  (box=0.0463 score=0.0602)  recall@5@0.5=0.206  spearman=0.691
+Epoch 5  train=0.1096  val=0.1064  (box=0.0455 score=0.0608)  recall@5@0.5=0.208  spearman=0.693
+Epoch 6  train=0.1085  val=0.1070  (box=0.0450 score=0.0620)  recall@5@0.5=0.214  spearman=0.687
+Epoch 7  train=0.1077  val=0.1055  (box=0.0446 score=0.0609)  recall@5@0.5=0.210  spearman=0.693
+Epoch 8  train=0.1068  val=0.1043  (box=0.0440 score=0.0603)  recall@5@0.5=0.207  spearman=0.684
+Epoch 9  train=0.1058  val=0.1063  (box=0.0440 score=0.0623)  recall@5@0.5=0.223  spearman=0.692
+Epoch 10  train=0.1051  val=0.1040  (box=0.0432 score=0.0608)  recall@5@0.5=0.221  spearman=0.684
+Saved to output/detr_placement.pt
+Generating heatmaps...
+  Saved → output/heatmaps/all_heatmaps.png
