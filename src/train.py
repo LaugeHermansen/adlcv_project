@@ -86,6 +86,7 @@ def weighted_heatmap_loss(
     beta=2.0,              # extra weight for target-active pixels
     eps=1e-6,
 ):
+    ### maybe needs some more work?
     B, H, W = target.shape
 
     mass = target.sum(dim=(1, 2), keepdim=True)
@@ -377,8 +378,8 @@ def train_heatmap_experiment(
     wandb_dir = Path("runs_wandb") / experiment_name
     if wandb_logger:
         logger = WandbLogger(
-            project="adlcv",
-            entity="diamand885-dtu",
+            project="heatmap-prediction",
+            entity="adlcv-project",
             name=experiment_name,
             save_dir=wandb_dir,
             log_model=wandb_log_model,  # set True if you want checkpoints logged as W&B artifacts
