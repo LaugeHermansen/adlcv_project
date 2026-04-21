@@ -313,11 +313,14 @@ def train_heatmap_experiment(
     batch_size: int = 8,
     num_workers: int = 8,
     lr: float = 1e-4,
-    weight_decay: float = 3e-4,
+    weight_decay: float = 1e-4,
     num_inspection_examples: int = 10,
     inspection_seed: int = 3,
     resume_from_checkpoint: str | Path | None = None,
-    wandb_logger: bool = False
+    ### wandb options
+    wandb_logger: bool = False,
+    wandb_log_model: bool = False,
+    ###
 ):
     train_ds = HiddenObjectsHeatmap(split="train")
     val_ds = HiddenObjectsHeatmap(split="test")
@@ -371,17 +374,18 @@ def train_heatmap_experiment(
         )
     ### wandb logger (maybe needs some work)
 
+    wandb_dir = Path("runs_wandb") / experiment_name
     if wandb_logger:
         logger = WandbLogger(
             project="adlcv",
             entity="diamand885-dtu",
             name=experiment_name,
-            save_dir="runs",
-            log_model=False,  # set True if you want checkpoints logged as W&B artifacts
+            save_dir=wandb_dir,
+            log_model=wandb_log_model,  # set True if you want checkpoints logged as W&B artifacts
         )
 
         checkpoint_cb = ModelCheckpoint(
-            dirpath=Path("runs_wandb") / experiment_name / "checkpoints",
+            dirpath=wandb_dir / "checkpoints",
             filename="{epoch:03d}-{val_mae:.4f}",
             monitor="val_loss",
             mode="min",
