@@ -14,5 +14,6 @@ train_heatmap_experiment(
     experiment_name=experiment_name,
     max_epochs=10,
     num_workers=16,
+    use_augmentation=True,
     # resume_from_checkpoint=f'runs/{experiment_name}/version_0/checkpoints/last.ckpt'
 )

@@ -18,6 +18,7 @@ from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
 from src.hidden_objects_dataset import HiddenObjectsHeatmap, heatmap_collate
+from src.augmentation import build_augmented_train_dataset
 
 
 # ============================================================
@@ -317,6 +318,10 @@ def train_heatmap_experiment(
     num_inspection_examples: int = 10,
     inspection_seed: int = 3,
     resume_from_checkpoint: str | Path | None = None,
+    ### augmentation options
+    use_augmentation: bool = False,
+    n_augmentation_copies: int = 1,
+    ###
     ### wandb options
     wandb_logger: bool = False,
     wandb_log_model: bool = False,
@@ -325,8 +330,20 @@ def train_heatmap_experiment(
     train_ds = HiddenObjectsHeatmap(split="train")
     val_ds = HiddenObjectsHeatmap(split="test")
 
+    # Build augmented training set if requested.
+    # The base dataset is shared — no extra disk/memory overhead per copy.
+    # The original train_ds is kept separate for the visualization callback
+    # so inspection panels always show clean, unaugmented examples.
+    if use_augmentation:
+        train_loader_ds = build_augmented_train_dataset(
+            base_dataset=train_ds,
+            n_extra_copies=n_augmentation_copies,
+        )
+    else:
+        train_loader_ds = train_ds
+
     train_loader = DataLoader(
-        train_ds,
+        train_loader_ds,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers,
