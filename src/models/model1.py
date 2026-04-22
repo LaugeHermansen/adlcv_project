@@ -60,7 +60,7 @@ class DecodeBlock(nn.Module):
         return x
 
 
-class SimplePlacementModel(nn.Module):
+class PatchFeatureFiLMDecoderHeatmapModel(nn.Module):
     """
     Slightly improved baseline:
     - frozen DINOv2 backbone

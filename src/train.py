@@ -86,7 +86,7 @@ def weighted_heatmap_loss(
     beta=2.0,              # extra weight for target-active pixels
     eps=1e-6,
 ):
-    ### maybe needs some more work?
+    ### quick idea. maybe needs some more work or better ideas?
     B, H, W = target.shape
 
     mass = target.sum(dim=(1, 2), keepdim=True)
@@ -132,7 +132,6 @@ class HeatmapLightningModule(L.LightningModule):
         self.model = model_class(**self.model_config)
 
         self.loss_fn = nn.MSELoss()
-        # self.loss_fn = weighted_heatmap_loss
 
         # Save everything needed to rebuild the wrapped model on load.
         self.save_hyperparameters()
