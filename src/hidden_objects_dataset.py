@@ -372,7 +372,7 @@ class HiddenObjectsHeatmap(Dataset):
         sample = self.anno_dataset[idx]
 
         bg_path = Path(sample["bg_path"])
-        heatmap_path = HEATMAPS_ROOT / f"{bg_path.with_suffix("")}_{sample['class']}.tiff"
+        heatmap_path = HEATMAPS_ROOT / f"{bg_path.with_suffix('')}_{sample['class']}.tiff"
 
         if self.use_saved_heatmaps:
             if heatmap_path.exists():
@@ -389,6 +389,9 @@ class HiddenObjectsHeatmap(Dataset):
                 heatmap_img.save(heatmap_path, compression="tiff_lzw")
         else:
             heatmap = self.heatmap_fn(sample)
+
+        if len(heatmap.shape) == 2:
+            heatmap = heatmap[None, :, :]
 
         return {
             **sample,
