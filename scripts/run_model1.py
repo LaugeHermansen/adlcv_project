@@ -1,4 +1,4 @@
-from models.model1 import PatchFeatureFiLMDecoderHeatmapModel
+from src.models.model1 import PatchFeatureFiLMDecoderHeatmapModel
 from src.train import train_heatmap_experiment
 
 model_class = PatchFeatureFiLMDecoderHeatmapModel
