@@ -17,7 +17,7 @@ from lightning.pytorch.loggers import WandbLogger
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
-from src.hidden_objects_dataset import HiddenObjectsHeatmap, heatmap_collate
+from src.hidden_objects_dataset import HiddenObjectsHeatmap, heatmap_collate, BoxGaussianHeatmap
 from src.augmentation import build_augmented_train_dataset
 
 
@@ -318,6 +318,10 @@ def train_heatmap_experiment(
     num_inspection_examples: int = 10,
     inspection_seed: int = 3,
     resume_from_checkpoint: str | Path | None = None,
+    ### heatmap target
+    heatmap_fn=None,
+    use_saved_heatmaps: bool = True,
+    ###
     ### augmentation options
     use_augmentation: bool = False,
     n_augmentation_copies: int = 1,
@@ -327,8 +331,11 @@ def train_heatmap_experiment(
     wandb_log_model: bool = False,
     ###
 ):
-    train_ds = HiddenObjectsHeatmap(split="train")
-    val_ds = HiddenObjectsHeatmap(split="test")
+    if heatmap_fn is None:
+        heatmap_fn = BoxGaussianHeatmap()
+
+    train_ds = HiddenObjectsHeatmap(split="train", heatmap_fn=heatmap_fn, use_saved_heatmaps=use_saved_heatmaps)
+    val_ds = HiddenObjectsHeatmap(split="test", heatmap_fn=heatmap_fn, use_saved_heatmaps=use_saved_heatmaps)
 
     # Build augmented training set if requested.
     # The base dataset is shared — no extra disk/memory overhead per copy.

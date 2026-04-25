@@ -15,7 +15,7 @@ from datasets import load_dataset
 sys.path.append(os.path.abspath("."))
 sys.path.append(os.path.abspath(".."))
 
-from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT, HEATMAPS_ROOT
+import src.globals as _g
 
 
 class HiddenObjectsBase(Dataset):
@@ -27,14 +27,14 @@ class HiddenObjectsBase(Dataset):
         self.hf_data = load_dataset(
             "marco-schouten/hidden-objects",
             split=split,
-            cache_dir=HF_CACHE_DIR,
+            cache_dir=_g.HF_CACHE_DIR,
             streaming=False,
         )
         if use_trimmed is None:
-            if os.path.exists(PLACES365_TRIMMED_ROOT):
-                self.image_root = PLACES365_TRIMMED_ROOT
-            elif os.path.exists(PLACES365_ROOT):
-                self.image_root = PLACES365_ROOT
+            if os.path.exists(_g.PLACES365_TRIMMED_ROOT):
+                self.image_root = _g.PLACES365_TRIMMED_ROOT
+            elif os.path.exists(_g.PLACES365_ROOT):
+                self.image_root = _g.PLACES365_ROOT
             else:
                 raise FileNotFoundError
 
@@ -351,35 +351,36 @@ class BoxGaussianHeatmap:
 
 
 
-
-
-
 class BoxBetaModeHeatmap:
     """
-    Beta-posterior heatmap with quality-based filtering.
+    Beta-posterior heatmap.
 
         pixel_i = pos_i / (alpha + pos_i + neg_i)
 
-    Before accumulation, boxes with low confidence or low reward score are
-    dropped so noisy annotations don't pollute the heatmap.
+    Each box contributes weight = confidence * Phi(reward_score) so both
+    detection quality and human-preference score drive the accumulation.
+    Negative boxes use a tighter kernel (neg_sigma_scale) so suppression
+    is localized. The raw posterior is returned without final normalization
+    so that low-evidence images stay dim (the [0,1] range is natural here).
     """
 
     def __init__(
         self,
         alpha: float = 15.0,
         sigma_scale: float = 0.30,
+        neg_sigma_scale: float = 0.15,
         truncate_sigma: float = 4.0,
         confidence_threshold: float = 0.40,
         reward_percentile: float = 0.25,
     ):
         self.alpha = alpha
         self.sigma_scale = sigma_scale
+        self.neg_sigma_scale = neg_sigma_scale
         self.truncate_sigma = truncate_sigma
         self.confidence_threshold = confidence_threshold
         self.reward_percentile = reward_percentile
 
     def _filter_boxes(self, boxes, confidences, labels, raw_reward_scores):
-        # keep the most confident boxes, but at least the top reward_percentile positive boxes, to avoid throwing away too many positives in low-confidence samples 
         conf_mask = confidences >= self.confidence_threshold
 
         pos_mask = labels == 1
@@ -404,7 +405,9 @@ class BoxBetaModeHeatmap:
 
         boxes, confidences, labels, reward_scores = self._filter_boxes(boxes, confidences, labels, reward_scores)
 
-        rewards = 0.5 * (1 + torch.erf(reward_scores / 2 ** 0.5))
+        # weight = detection confidence × human-preference probability
+        phi_rewards = 0.5 * (1 + torch.erf(reward_scores / 2 ** 0.5))
+        weights = confidences * phi_rewards
 
         pos_acc = torch.zeros(H, W)
         neg_acc = torch.zeros(H, W)
@@ -412,13 +415,16 @@ class BoxBetaModeHeatmap:
         xs_full = torch.arange(W, dtype=torch.float32)
         ys_full = torch.arange(H, dtype=torch.float32)
 
-        for box, label, reward in zip(boxes, labels, rewards):
+        for box, label, weight in zip(boxes, labels, weights):
             x, y, w, h = box
+
+            # tighter kernel for negatives: suppression is more localized
+            scale = self.sigma_scale if label == 1 else self.neg_sigma_scale
+            sigma_x = max(scale * w.item(), 1e-3)
+            sigma_y = max(scale * h.item(), 1e-3)
+
             cx = x + 0.5 * w
             cy = y + 0.5 * h
-
-            sigma_x = max(self.sigma_scale * w.item(), 1e-3)
-            sigma_y = max(self.sigma_scale * h.item(), 1e-3)
 
             rx = int(np.ceil(self.truncate_sigma * sigma_x))
             ry = int(np.ceil(self.truncate_sigma * sigma_y))
@@ -439,12 +445,13 @@ class BoxBetaModeHeatmap:
             )
 
             if label == 1:
-                pos_acc[y0:y1, x0:x1] += reward * g
+                pos_acc[y0:y1, x0:x1] += weight * g
             else:
-                neg_acc[y0:y1, x0:x1] += reward * g
+                neg_acc[y0:y1, x0:x1] += weight * g
 
-        heatmap = pos_acc / (self.alpha + pos_acc + neg_acc)
-        return heatmap / (heatmap.max() + 1e-8)
+        # raw posterior in [0, 1] — no final normalization so sparse-evidence
+        # images stay dim rather than being artificially amplified
+        return pos_acc / (self.alpha + pos_acc + neg_acc)
 
 
 class HiddenObjectsHeatmap(Dataset):
@@ -470,7 +477,7 @@ class HiddenObjectsHeatmap(Dataset):
         sample = self.anno_dataset[idx]
 
         bg_path = Path(sample["bg_path"])
-        heatmap_path = HEATMAPS_ROOT / f"{bg_path.with_suffix('')}_{sample['class']}.tiff"
+        heatmap_path = _g.HEATMAPS_ROOT / f"{bg_path.with_suffix('')}_{sample['class']}.tiff"
 
         if self.use_saved_heatmaps:
             if heatmap_path.exists():
