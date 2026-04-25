@@ -45,15 +45,15 @@ class Loader(object):
         return Image.fromarray(im), scale
 
 
-import data.transforms as T
+# import data.transforms as T
 
 
-def get_transform(istrain=False):
-    transforms = []
-    transforms.append(T.ToTensor())
-    if istrain:
-        transforms.append(T.RandomHorizontalFlip(0.5))
-    return T.Compose(transforms)
+# def get_transform(istrain=False):
+#     transforms = []
+#     transforms.append(T.ToTensor())
+#     if istrain:
+#         transforms.append(T.RandomHorizontalFlip(0.5))
+#     return T.Compose(transforms)
 
 
 normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],

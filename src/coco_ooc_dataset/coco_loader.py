@@ -9,7 +9,7 @@ from PIL import Image
 import torch
 import os
 import numpy as np
-from src.coco_ooc_dataset.scripts.voc_loader import imgtransform
+from src.coco_ooc_dataset.voc_loader import imgtransform
 from typing import List
 
 COCO_VOC_CATS = ['__background__', 'airplane', 'bicycle', 'bird', 'boat',
