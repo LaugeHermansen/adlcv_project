@@ -2,7 +2,7 @@
 ### -- specify queue --
 #BSUB -q gpuv100
 ### -- set the job Name --
-#BSUB -J detr_placement
+#BSUB -J model1_aug
 ### -- ask for number of cores --
 #BSUB -n 4
 ### -- specify that the cores must be on the same host --
@@ -25,4 +25,4 @@ module load cuda/12.1
 cd /zhome/06/9/168972/Adv_DL_CV/adlcv_project
 source /zhome/06/9/168972/.venvs/fpADLCV/bin/activate
 
-WANDB_MODE=online PYTHONPATH=. python src/test_detr_pretrained.py
+PYTHONPATH=. python scripts/run_model1.py
