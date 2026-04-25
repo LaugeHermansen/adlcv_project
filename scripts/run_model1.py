@@ -13,7 +13,7 @@ train_heatmap_experiment(
     model_config=model_config,
     experiment_name=experiment_name,
     max_epochs=10,
-    num_workers=16,
+    num_workers=4,
     use_augmentation=True,
     # resume_from_checkpoint=f'runs/{experiment_name}/version_0/checkpoints/last.ckpt'
 )
