@@ -349,6 +349,104 @@ class BoxGaussianHeatmap:
 
         return heatmap / (heatmap.max() + 1e-8)
 
+
+
+
+
+
+class BoxBetaModeHeatmap:
+    """
+    Beta-posterior heatmap with quality-based filtering.
+
+        pixel_i = pos_i / (alpha + pos_i + neg_i)
+
+    Before accumulation, boxes with low confidence or low reward score are
+    dropped so noisy annotations don't pollute the heatmap.
+    """
+
+    def __init__(
+        self,
+        alpha: float = 15.0,
+        sigma_scale: float = 0.30,
+        truncate_sigma: float = 4.0,
+        confidence_threshold: float = 0.40,
+        reward_percentile: float = 0.25,
+    ):
+        self.alpha = alpha
+        self.sigma_scale = sigma_scale
+        self.truncate_sigma = truncate_sigma
+        self.confidence_threshold = confidence_threshold
+        self.reward_percentile = reward_percentile
+
+    def _filter_boxes(self, boxes, confidences, labels, raw_reward_scores):
+        # keep the most confident boxes, but at least the top reward_percentile positive boxes, to avoid throwing away too many positives in low-confidence samples 
+        conf_mask = confidences >= self.confidence_threshold
+
+        pos_mask = labels == 1
+        pos_rewards = raw_reward_scores[pos_mask & conf_mask]
+        if len(pos_rewards) > 0:
+            reward_threshold = torch.quantile(pos_rewards, self.reward_percentile)
+        else:
+            reward_threshold = -torch.inf
+
+        reward_mask = (labels == 0) | (raw_reward_scores >= reward_threshold)
+        keep = conf_mask & reward_mask
+        return boxes[keep], confidences[keep], labels[keep], raw_reward_scores[keep]
+
+    def __call__(self, sample: dict) -> torch.Tensor:
+        image = sample["image"]
+        boxes = sample["boxes"].round()
+        labels = sample["labels"]
+        confidences = sample["confidences"]
+        reward_scores = sample["image_reward_scores"]
+
+        _, H, W = image.shape
+
+        boxes, confidences, labels, reward_scores = self._filter_boxes(boxes, confidences, labels, reward_scores)
+
+        rewards = 0.5 * (1 + torch.erf(reward_scores / 2 ** 0.5))
+
+        pos_acc = torch.zeros(H, W)
+        neg_acc = torch.zeros(H, W)
+
+        xs_full = torch.arange(W, dtype=torch.float32)
+        ys_full = torch.arange(H, dtype=torch.float32)
+
+        for box, label, reward in zip(boxes, labels, rewards):
+            x, y, w, h = box
+            cx = x + 0.5 * w
+            cy = y + 0.5 * h
+
+            sigma_x = max(self.sigma_scale * w.item(), 1e-3)
+            sigma_y = max(self.sigma_scale * h.item(), 1e-3)
+
+            rx = int(np.ceil(self.truncate_sigma * sigma_x))
+            ry = int(np.ceil(self.truncate_sigma * sigma_y))
+
+            x0 = max(0, int(np.floor(float(cx) - rx)))
+            x1 = min(W, int(np.ceil(float(cx) + rx + 1)))
+            y0 = max(0, int(np.floor(float(cy) - ry)))
+            y1 = min(H, int(np.ceil(float(cy) + ry + 1)))
+
+            xs = xs_full[x0:x1].view(1, -1)
+            ys = ys_full[y0:y1].view(-1, 1)
+
+            g = torch.exp(
+                -0.5 * (
+                    ((xs - cx) / sigma_x) ** 2 +
+                    ((ys - cy) / sigma_y) ** 2
+                )
+            )
+
+            if label == 1:
+                pos_acc[y0:y1, x0:x1] += reward * g
+            else:
+                neg_acc[y0:y1, x0:x1] += reward * g
+
+        heatmap = pos_acc / (self.alpha + pos_acc + neg_acc)
+        return heatmap / (heatmap.max() + 1e-8)
+
+
 class HiddenObjectsHeatmap(Dataset):
     def __init__(
         self,
