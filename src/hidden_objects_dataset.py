@@ -3,6 +3,7 @@ import sys
 import os
 import warnings
 
+from typing import cast
 import numpy as np
 import pandas as pd
 import torch
@@ -12,8 +13,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from datasets import load_dataset
 
-sys.path.append(os.path.abspath("."))
-sys.path.append(os.path.abspath(".."))
+# sys.path.append(os.path.abspath("."))
+# sys.path.append(os.path.abspath(".."))
 
 from src.globals import HF_CACHE_DIR, PLACES365_ROOT, PLACES365_TRIMMED_ROOT, HEATMAPS_ROOT
 
@@ -379,7 +380,7 @@ class HiddenObjectsHeatmap(Dataset):
                 heatmap_img = Image.open(heatmap_path)
                 if heatmap_img.mode != "F":
                     raise ValueError(f"Expected heatmap image to be grayscale, but got mode {heatmap_img.mode}")
-                heatmap = self.anno_dataset.transform(heatmap_img)
+                heatmap = cast(torch.Tensor, self.anno_dataset.transform(heatmap_img)).squeeze(0)
             else:
                 warnings.warn(f"Heatmap image not found at {heatmap_path}, computing heatmap on the fly")   
                 heatmap = self.heatmap_fn(sample)
@@ -389,6 +390,8 @@ class HiddenObjectsHeatmap(Dataset):
                 heatmap_img.save(heatmap_path, compression="tiff_lzw")
         else:
             heatmap = self.heatmap_fn(sample)
+
+        assert heatmap.shape == (self.anno_dataset.image_size, self.anno_dataset.image_size), f"Unexpected heatmap shape: {heatmap.shape}"
 
         return {
             **sample,
