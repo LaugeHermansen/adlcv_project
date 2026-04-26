@@ -1,0 +1,38 @@
+┏━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━━┓
+┃   ┃ Name    ┃ Type                                ┃ Params ┃ Mode  ┃ FLOPs ┃
+┡━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━━┩
+│ 0 │ model   │ PatchFeatureFiLMDecoderHeatmapModel │ 22.9 M │ train │     0 │
+│ 1 │ loss_fn │ MSELoss                             │      0 │ train │     0 │
+└───┴─────────┴─────────────────────────────────────┴────────┴───────┴───────┘
+Trainable params: 794 K                                                         
+Non-trainable params: 22.1 M                                                    
+Total params: 22.9 M                                                            
+Total estimated model params size (MB): 91                                      
+Modules in train mode: 80                                                       
+Modules in eval mode: 224                                                       
+Total FLOPs: 0                                                                  
+Epoch 9/9  ━━━━━━━━━━━━━━━━ 6249/6249 0:15:44 •       6.68it/s v_num: 3.000     
+                                      0:00:00                  train_loss_step: 
+                                                               0.003            
+                                                               train_mae_step:  
+                                                               0.028            
+                                                               train_mse_step:  
+                                                               0.003            
+                                                               val_loss_step:   
+                                                               0.004            
+                                                               val_mae_step:    
+                                                               0.038            
+                                                               val_mse_step:    
+                                                               0.004            
+                                                               val_loss_epoch:  
+                                                               0.005            
+                                                               val_mae_epoch:   
+                                                               0.032            
+                                                               val_mse_epoch:   
+                                                               0.005            
+                                                               train_loss_epoch:
+                                                               0.003            
+                                                               train_mae_epoch: 
+                                                               0.030            
+                                                               train_mse_epoch: 
+                                                               0.003            
