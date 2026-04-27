@@ -142,7 +142,7 @@ def evaluation_pipeline(
     return output_df
 
 def get_heatmap_model_evaluation_fn(
-        heatmap_pred_fn: Callable[[torch.Tensor, list[str]]], 
+        heatmap_pred_fn: Callable[[torch.Tensor, list[str]], torch.Tensor],
         device: str,
         batch_score_fn: Callable[[torch.Tensor, torch.Tensor], list[float]],
     ) -> BATCH_EVAL_SCORE_FN_TYPE:
