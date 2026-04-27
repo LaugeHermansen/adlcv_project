@@ -196,5 +196,4 @@ class PatchFeatureFiLMDecoderHeatmapModel(nn.Module):
         x = F.interpolate(x, size=(512, 512), mode="bilinear", align_corners=False)
         x = self.dec512(x, text_feat)
 
-        heatmap = torch.sigmoid(self.head(x).squeeze(1))
-        return heatmap
+        return torch.sigmoid(self.head(x))  # shape (B, 1, H, W)
