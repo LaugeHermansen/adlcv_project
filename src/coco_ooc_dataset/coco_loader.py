@@ -196,11 +196,3 @@ class COCOLoader():
 
         return target
 
-
-# %%
-if __name__ == '__main__':
-    DATASETS_ROOT = './datasets'
-    split = 'val2014'
-    root = '/home/manoj/%s' % (split)
-    annFile = '%s/coco/annotations/instances_%s.json' % (DATASETS_ROOT, split)
-    ld = COCOLoader(root, annFile, included=[1])

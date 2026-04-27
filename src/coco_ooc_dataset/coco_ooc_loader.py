@@ -5,7 +5,6 @@ Created on Tue Oct 29 16:28:55 2019
 
 @author: manoj
 """
-import ipdb
 from PIL import Image
 import torch
 import os
@@ -141,7 +140,11 @@ class COCO_OOC_Dataset():
             index (int): Index
 
         Returns:
-            tuple: Tuple (image, target). target is a list of captions for the image.
+            tuple: Tuple (image, ooc_cat, ooc_box, inc_cats, inc_boxes). 
+             - ooc_cat is the category of the out-of-context object, 
+             - ooc_box is the bounding box of the out-of-context object, 
+             - inc_cats is a list of categories of the in-context objects, 
+             - inc_boxes is a list of bounding boxes of the in-context objects.
         """
 
         file = np.load(self.ids[index], allow_pickle=True).tolist()
@@ -287,6 +290,7 @@ class COCO_OCC_Dataset_dataloader:
             categories = []
             boxes = []
             labels = []
+            dataset_indices = []
             for i in range(self.batch_size):
                 try:
                     img, cat, box, label, dataset_idx = next(self.generator)
@@ -294,11 +298,12 @@ class COCO_OCC_Dataset_dataloader:
                     categories.append(cat)
                     boxes.append(box)
                     labels.append(label)
+                    dataset_indices.append(dataset_idx)
                 except StopIteration:
                     break
             if len(imgs) == 0:
                 break
-            yield torch.stack(imgs), categories, torch.from_numpy(np.stack(boxes)), torch.tensor(labels), dataset_idx
+            yield torch.stack(imgs), categories, torch.from_numpy(np.stack(boxes)), torch.tensor(labels), dataset_indices
 
 
     def get_generator(self):
@@ -317,21 +322,42 @@ class COCO_OCC_Dataset_dataloader:
 
 
 def get_dataloader(
-    coco_ooc_dataset_root = r'C:\Users\Lauge\Downloads\coco_ooc\coco_ooc_dataset',
-    coco_2014_ann_file = r'C:\Users\Lauge\fiftyone\coco-2014\raw\instances_val2014.json',
+    coco_ooc_dataset_root: Path,
+    target_classes: List[str],
     batch_size = 64,
     dataset_step_size = 200,
-    max_in_context_pr_ooc = 5
+    max_in_context_pr_ooc = 5,
+    img_size = 512
 ):
-    dataset = COCO_OOC_Dataset(coco_ooc_dataset_root, coco_2014_ann_file, oocd_dir=coco_ooc_dataset_root)
+    """Utility function to get dataloader for coco ooc dataset.
+
+    Args:
+        - coco_ooc_dataset_root (Path) : Path to the root of coco ooc dataset.
+        - batch_size (int, optional) : Batch size. Defaults to 64.
+        - dataset_step_size (float|None, optional) : Step size to iterate through the dataset. If None, iterates through the entire dataset. Defaults to 200.
+          I.e if dataset_step_size=200, it will yield one batch for every 200 images in the dataset. This is a hacky way to only use a subset of the dataset for faster experimentation.
+        - max_in_context_pr_ooc (int|None, optional) : Maximum number of in-context objects to include per out-of-context object. If None, includes all in-context objects. Defaults to 5.
+
+    Returns:
+        COCO_OCC_Dataset_dataloader: Dataloader for coco ooc dataset.   
+
+    """
+
+    coco_ann_file = coco_ooc_dataset_root / "instances_val2014.json"
+    dataset = COCO_OOC_Dataset(
+        coco_ooc_dataset_root, 
+        coco_ann_file, 
+        oocd_dir=coco_ooc_dataset_root,
+        img_size=512
+    )
     dataloader = COCO_OCC_Dataset_dataloader(
         dataset, 
         batch_size=batch_size, 
-        target_classes=['person', 'car', 'dog', 'cat', 'bicycle', 'airplane', 'bus', 'train', 'truck'],
+        target_classes=target_classes,
         dataset_step_size=dataset_step_size,
         max_inc_pr_ooc=max_in_context_pr_ooc
     )
-    return dataloader
+    return dataloader, dataset
 
 
 # %%
