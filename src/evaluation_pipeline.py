@@ -282,7 +282,13 @@ def EXAMPLE_median_heatmap_evaluation_dummy_model():
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     calculate_score_fn = get_heatmap_model_evaluation_fn(dummy_heatmap_pred_fn, device, median_heatmap_score_fn)
-    output_df = evaluation_pipeline(calculate_score_fn, batch_size=64, img_size=img_size)
+    output_df = evaluation_pipeline(
+        calculate_score_fn, 
+        batch_size=64,
+        img_size=img_size,
+        dataset_step_size=100,
+        max_in_context_pr_ooc=5
+    )
     print("Summarizing results...")
     summary_df = summarize_results(output_df)
 
