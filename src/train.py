@@ -79,24 +79,86 @@ def _extract_logger_version_from_ckpt(ckpt_path: str | Path) -> int | None:
 # Lightning module
 # ============================================================
 
-def weighted_heatmap_loss(
-    pred,                  # predicted heatmap after sigmoid, shape (B, H, W)
-    target,                # in [0, 1], shape (B, H, W)
-    alpha=0.5,             # inverse-mass strength
-    beta=2.0,              # extra weight for target-active pixels
-    eps=1e-6,
-):
-    ### quick idea. maybe needs some more work or better ideas?
-    B, H, W = target.shape
+# def weighted_heatmap_loss(
+#     pred,                  # predicted heatmap after sigmoid, shape (B, H, W)
+#     target,                # in [0, 1], shape (B, H, W)
+#     alpha=0.5,             # inverse-mass strength
+#     beta=2.0,              # extra weight for target-active pixels
+#     eps=1e-6,
+# ):
+#     ### quick idea. maybe needs some more work or better ideas?
+#     B, H, W = target.shape
 
-    mass = target.sum(dim=(1, 2), keepdim=True)
-    sample_weight = ((H * W) / (mass + eps)).pow(alpha)
+#     mass = target.sum(dim=(1, 2), keepdim=True)
+#     sample_weight = ((H * W) / (mass + eps)).pow(alpha)
 
-    # High target pixels get more weight; tiny positive regions get even more
-    weight = 1.0 + beta * target * sample_weight
+#     # High target pixels get more weight; tiny positive regions get even more
+#     weight = 1.0 + beta * target * sample_weight
 
-    loss = weight * (pred - target).pow(2)
-    return loss.mean()
+#     loss = weight * (pred - target).pow(2)
+#     return loss.mean()
+
+def soft_dice_loss(pred, target, eps: float = 1e-6):
+    pred = pred.reshape(pred.size(0), -1)
+    target = target.reshape(target.size(0), -1)
+
+    intersection = (pred * target).sum(dim=1)
+    denom = pred.sum(dim=1) + target.sum(dim=1)
+
+    dice = (2.0 * intersection + eps) / (denom + eps)
+    return 1.0 - dice.mean()
+
+def safe_bce_loss(pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    with torch.autocast(device_type=pred.device.type, enabled=False):
+        return F.binary_cross_entropy(pred.float(), target.float())
+
+def make_single_loss(spec: dict[str, Any]):
+    name = spec.get("name")
+    if not name:
+        return None
+
+    name = name.lower()
+
+    if name == "mse":
+        return F.mse_loss
+
+    if name in {"mae"}:
+        return F.l1_loss
+
+    if name in {"bce"}:
+        return safe_bce_loss
+
+    if name in {"dice"}:
+        return soft_dice_loss
+
+    raise ValueError(f"Unknown loss name: {name!r}")
+
+
+def make_loss_aggregator(loss_config: Sequence[dict[str, Any]]):
+    losses = []
+
+    for spec in loss_config:
+        name = spec.get("name")
+        weight = float(spec.get("weight", 1.0))
+
+        if not name or weight == 0.0:
+            continue
+
+        loss_fn = make_single_loss(spec)
+        losses.append((weight, loss_fn))
+
+    if not losses:
+        raise ValueError("No active losses configured.")
+
+    def loss_fn(pred, target):
+        total = pred.new_tensor(0.0)
+
+        for weight, fn in losses:
+            total = total + weight * fn(pred, target)
+
+        return total
+
+    return loss_fn
 
 class HeatmapLightningModule(L.LightningModule):
     """
@@ -118,8 +180,9 @@ class HeatmapLightningModule(L.LightningModule):
         self,
         model_class_path: str,
         model_config: dict[str, Any],
-        lr: float = 1e-4,
-        weight_decay: float = 1e-4,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-2,
+        loss_config: Optional[Sequence[dict[str, Any]]] = None,
     ):
         super().__init__()
 
@@ -131,7 +194,8 @@ class HeatmapLightningModule(L.LightningModule):
         model_class = _import_from_path(model_class_path)
         self.model = model_class(**self.model_config)
 
-        self.loss_fn = nn.MSELoss()
+        self.loss_config = loss_config or [{"name": "mse", "weight": 1.0}]
+        self.loss_fn = make_loss_aggregator(self.loss_config)
 
         # Save everything needed to rebuild the wrapped model on load.
         self.save_hyperparameters()
@@ -156,13 +220,21 @@ class HeatmapLightningModule(L.LightningModule):
             )
 
         loss = self.loss_fn(pred, target)
-        mae = F.l1_loss(pred, target)
-        mse = F.mse_loss(pred, target)
+        with torch.no_grad():
+            pred = pred.detach()
+            target = target.detach()
+
+            mae = F.l1_loss(pred, target)
+            mse = F.mse_loss(pred, target)
+            dice = 1 - soft_dice_loss(pred, target)
+            bce = safe_bce_loss(pred, target)
 
         bs = image.size(0)
         self.log(f"{stage}_loss", loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=bs)
         self.log(f"{stage}_mae", mae, on_step=True, on_epoch=True, prog_bar=True, batch_size=bs)
         self.log(f"{stage}_mse", mse, on_step=True, on_epoch=True, prog_bar=True, batch_size=bs)
+        self.log(f"{stage}_dice", dice, on_step=True, on_epoch=True, prog_bar=True, batch_size=bs)
+        self.log(f"{stage}_bce", bce, on_step=True, on_epoch=True, prog_bar=True, batch_size=bs)
 
         return loss
 
@@ -312,10 +384,11 @@ def train_heatmap_experiment(
     max_epochs: int = 10,
     batch_size: int = 8,
     num_workers: int = 8,
+    loss_config: Optional[Sequence[dict[str, Any]]] = None,
     lr: float = 1e-4,
     weight_decay: float = 1e-4,
-    num_inspection_examples: int = 10,
-    inspection_seed: int = 3,
+    num_inspection_examples: int = 50,
+    inspection_seed: int = 0,
     resume_from_checkpoint: str | Path | None = None,
     ### wandb options
     wandb_logger: bool = False,
@@ -348,6 +421,7 @@ def train_heatmap_experiment(
         model_config=model_config,
         lr=lr,
         weight_decay=weight_decay,
+        loss_config=loss_config,
     )
 
     ### TensorBoard logger

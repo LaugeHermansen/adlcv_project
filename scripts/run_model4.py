@@ -1,16 +1,12 @@
-from src.models.model1 import PatchFeatureFiLMDecoderHeatmapModel
+from src.models.model4 import ObjectPlacementHeatmapModel
 from src.train import train_heatmap_experiment
 
-model_class = PatchFeatureFiLMDecoderHeatmapModel
+model_class = ObjectPlacementHeatmapModel
 model_config = {
-    "image_backbone_name": "facebook/dinov2-base"
+    
 }
-loss_config = [
-    {'name': 'dice', 'weight': 0.1},
-    {'name': 'mse', 'weight': 0.9},
-]
 
-experiment_name = 'model1'
+experiment_name = 'model2'
 
 train_heatmap_experiment(
     model_class=model_class,
@@ -18,7 +14,6 @@ train_heatmap_experiment(
     experiment_name=experiment_name,
     max_epochs=5,
     num_workers=16,
-    loss_config=loss_config,
     lr=1e-3,
     weight_decay=1e-2,
     # resume_from_checkpoint=f'runs/{experiment_name}/version_0/checkpoints/last.ckpt'
