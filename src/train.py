@@ -343,12 +343,16 @@ class FixedInspectionPanelCallback(Callback):
             ax3.set_title("overlay")
             ax3.axis("off")
 
-        fig.suptitle(f"{split_name.capitalize()} examples — epoch {trainer.current_epoch}")
-        fig.tight_layout()
+        fig.suptitle(
+            f"{split_name.capitalize()} examples — epoch {trainer.current_epoch}",
+            y=0.995,
+        )
+
+        fig.tight_layout(rect=(0, 0, 1, 0.97))
 
         out_dir = Path(trainer.log_dir) / f"{split_name}_panels"
         out_dir.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out_dir / f"epoch_{trainer.current_epoch:03d}.png", dpi=160, bbox_inches="tight")
+        fig.savefig(out_dir / f"epoch_{trainer.current_epoch:03d}.png", dpi=100, bbox_inches="tight")
         plt.close(fig)
 
     @torch.no_grad()
