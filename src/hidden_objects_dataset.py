@@ -138,6 +138,10 @@ class HiddenObjectsImageClassLevel(HiddenObjectsBase):
         entry_ids = np.asarray(self.df["entry_id"])
         entry_codes, unique_entry_ids = pd.factorize(entry_ids, sort=False)
 
+        self.df["fg_class"] = self.df["fg_class"].astype("category")
+
+        self.unique_classes: list[str] = self.df["fg_class"].cat.categories.tolist()
+
         order = np.argsort(entry_codes)
         sorted_codes = entry_codes[order]
 
@@ -217,6 +221,8 @@ class HiddenObjectsImageClassLevelFast(HiddenObjectsBase):
         self.reward_arr = self.df["image_reward_score"].to_numpy()
         self.entry_id_arr = self.df["entry_id"].to_numpy()
         self.source_arr = self.df["source"].to_numpy()
+
+        self.unique_classes: list[str] = np.unique(self.class_arr).tolist()
 
     def __len__(self):
         return len(self.unique_entry_ids)
@@ -463,6 +469,7 @@ class HiddenObjectsHeatmap(Dataset):
         use_fast_dataset=True,
         use_saved_heatmaps=True,
     ):
+        self.anno_dataset: HiddenObjectsImageClassLevel|HiddenObjectsImageClassLevelFast
         if use_fast_dataset:
             self.anno_dataset = HiddenObjectsImageClassLevelFast(split=split, image_size=image_size)
         else:
