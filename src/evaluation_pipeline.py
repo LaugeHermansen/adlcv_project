@@ -145,6 +145,24 @@ def evaluation_pipeline(
 
     return output_df
 
+
+
+def get_heatmap_pred_fn(model, device):
+    def heatmap_pred_fn(imgs: torch.Tensor, cats: list[str]) -> torch.Tensor:
+        # This is a heatmap prediction function that uses the provided model to predict heatmaps for the input images and categories.
+        # The function should take care of any necessary preprocessing (e.g., normalization) before feeding the images to the model.
+        # The function should return a batch of predicted heatmaps, with shape [batch_size, 1, img_size, img_size].
+        model.eval()
+        with torch.no_grad():
+            imgs = imgs.to(device)
+            heatmaps = model(imgs, cats)  # Assuming the model takes images and categories as input and returns heatmaps
+            return heatmaps.cpu()
+        
+    return heatmap_pred_fn
+
+
+
+
 def get_heatmap_model_evaluation_fn(
         heatmap_pred_fn: Callable[[torch.Tensor, list[str]]], 
         device: str,
@@ -254,8 +272,8 @@ def summarize_results(df: pd.DataFrame):
     The summary includes the mean score, count of samples, and variance of scores for 
     each label (in-context and out-of-context).
     0 is the label for in-context objects, and 1 is the label for out-of-context objects.
-    
     """
+
     groupby_result = df.groupby("label")
     mean = groupby_result["score"].mean()
     count = groupby_result["score"].count()
@@ -267,28 +285,21 @@ def summarize_results(df: pd.DataFrame):
     })
     return summary
 
-def EXAMPLE_median_heatmap_evaluation_dummy_model():
+def mean_heatmap_evaluation_pipeline(
+        model_name: str, 
+        heatmap_pred_fn: Callable[[torch.Tensor, list[str]], torch.Tensor], 
+        img_size: int,
+        device: str):
     """
     This is an example on how to use the evaluation pipeline with a dummy heatmap
-    prediction function and the median_heatmap_score_fn as the batch score function.
+    prediction function and the mean_heatmap_score_fn as the batch score function.
     
     """
-    img_size = 512
-    model_name = "dummy_model"
     save_path = Path(f"evaluation_results") / f"{model_name}_summary.csv"
     save_path.parent.mkdir(exist_ok=True, parents=True)
-    # Example usage of the evaluation pipeline with a dummy heatmap prediction function and the sum_mean_heatmap_score_fn
-    # NOTE: replace this dummy heatmap prediction function with the actual heatmap prediction model for real evaluation.
-    # The dummy function is just for testing the pipeline.
-
-    def dummy_heatmap_pred_fn(imgs: torch.Tensor, cats: list[str]) -> torch.Tensor:
-        # This is a dummy heatmap prediction function that returns random heatmaps
-        batch_size = imgs.shape[0]
-        heatmaps = torch.rand(batch_size, 1, img_size, img_size)  # Assuming heatmaps are of size img_size x img_size
-        return heatmaps
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    calculate_score_fn = get_heatmap_model_evaluation_fn(dummy_heatmap_pred_fn, device, median_heatmap_score_fn)
+    calculate_score_fn = get_heatmap_model_evaluation_fn(heatmap_pred_fn, device, mean_heatmap_score_fn)
     output_df = evaluation_pipeline(
         calculate_score_fn, 
         batch_size=64,
@@ -305,5 +316,5 @@ def EXAMPLE_median_heatmap_evaluation_dummy_model():
     print(f"Summary saved to {save_path}")
 
 
-if __name__ == "__main__":
-    EXAMPLE_median_heatmap_evaluation_dummy_model()
+# if __name__ == "__main__":
+#     mean_heatmap_evaluation_pipeline()
