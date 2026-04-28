@@ -42,9 +42,12 @@ def evaluation_pipeline(
     """
     Run the evaluation pipeline for the COCO_OOC dataset.
     The pipeline consists of the following steps:
-    1. Initialize the COCO_OOC dataloader and the HiddenObjectsHeatmap dataset to get the unique classes.
-    2. Iterate over the COCO_OOC dataloder and calculate the score for each batch using the provided calculate_score_fn.
-    3. Store the outputs in a list of EvaluationDataLine dataclasses, which contain the category, label, score, box coordinates and dataset index for each sample in the batch.
+    1. Initialize the COCO_OOC dataloader and the HiddenObjectsHeatmap dataset to get the unique 
+       classes.
+    2. Iterate over the COCO_OOC dataloder and calculate the score for each batch using the provided 
+       calculate_score_fn.
+    3. Store the outputs in a list of EvaluationDataLine dataclasses, which contain the category, 
+       label, score, box coordinates and dataset index for each sample in the batch.
     4. Convert the list of EvaluationDataLine dataclasses to a pandas DataFrame and return it.
 
     Args:
@@ -74,28 +77,29 @@ def evaluation_pipeline(
                 dataset_indices: list[int] ( list of dataset indices for each sample in the batch)) -> list[float]
 
         - batch_size (int): The size of each batch to be processed. Default is 64.
-        - img_size (int): The size to which the images will be resized (center-cropped) before being fed to the model. Default is 512.
+        - img_size (int): The size to which the images will be resized (center-cropped) before 
+        being fed to the model. Default is 512.
         - dataset_step_size (int): The step size for iterating over the dataset. Default is 100.
-        - max_in_context_pr_ooc (int): The maximum number of in-context samples to include for each out-of-context sample in the dataset. Default is 5.
+        - max_in_context_pr_ooc (int): The maximum number of in-context samples to include for 
+        each out-of-context sample in the dataset. Default is 5.
 
-        For the last four arguments, see the `get_dataloader` function in `coco_ooc_loader.py` for more details on how they affect the dataloader and the dataset.
+        For the last four arguments, see the `get_dataloader` function in `coco_ooc_loader.py` for
+        more details on how they affect the dataloader and the dataset.
 
     Returns:
-        - pd.DataFrame: A DataFrame containing the evaluation results, with columns for category, label, score, box coordinates and dataset index.
+        - pd.DataFrame: A DataFrame containing the evaluation results, with columns for 
+            category, label, score, box coordinates and dataset index.
     
     """
-
 
     # Initialize COCO_OOC dataloader - and HiddenObjectsHeatmap dataset to get the unique classes
     print("Starting evaluation pipeline...")
     print("Initializing dataloader and dataset...")
     ho_ds = HiddenObjectsHeatmap()
 
-    unique_classes = np.unique(ho_ds.anno_dataset.class_arr).tolist()
-
     dl, coco_ds = get_dataloader(
         COCO_OOC_ROOT,
-        target_classes=unique_classes,
+        target_classes=ho_ds.anno_dataset.unique_classes,
         batch_size=batch_size,
         dataset_step_size=dataset_step_size,
         max_in_context_pr_ooc=max_in_context_pr_ooc,
@@ -245,8 +249,10 @@ def median_heatmap_score_fn(
 
 def summarize_results(df: pd.DataFrame):
     """
-    This function takes the output DataFrame from the evaluation pipeline and prints a summary of the results.
-    The summary includes the mean score, count of samples, and variance of scores for each label (in-context and out-of-context).
+    This function takes the output DataFrame from the evaluation pipeline and prints a 
+    summary of the results.
+    The summary includes the mean score, count of samples, and variance of scores for 
+    each label (in-context and out-of-context).
     0 is the label for in-context objects, and 1 is the label for out-of-context objects.
     
     """
@@ -263,7 +269,8 @@ def summarize_results(df: pd.DataFrame):
 
 def EXAMPLE_median_heatmap_evaluation_dummy_model():
     """
-    This is an example on how to use the evaluation pipeline with a dummy heatmap prediction function and the median_heatmap_score_fn as the batch score function.
+    This is an example on how to use the evaluation pipeline with a dummy heatmap
+    prediction function and the median_heatmap_score_fn as the batch score function.
     
     """
     img_size = 512
