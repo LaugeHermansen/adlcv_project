@@ -30,6 +30,83 @@ def build_class_vocab(train_ds: VAEDataset, test_ds: VAEDataset):
     class_to_idx = {c: i for i, c in enumerate(classes)}
     return classes, class_to_idx
 
+
+def instantiate_model_and_optimizer(device, **ckpt):
+    class_to_idx = ckpt["class_to_idx"]
+    heatmap_channels = ckpt["heatmap_channels"]
+    image_channels = ckpt["image_channels"]
+    class_emb_channels = ckpt["class_emb_channels"]
+    latent_hw = ckpt["latent_hw"]
+
+    model_in_channels = heatmap_channels + image_channels + class_emb_channels
+
+    model = UNet2DModel(
+        sample_size=latent_hw,
+        in_channels=model_in_channels,
+        out_channels=heatmap_channels,
+        layers_per_block=2,
+        block_out_channels=(128, 256, 256, 512),
+        down_block_types=("DownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D"),
+        up_block_types=("AttnUpBlock2D", "AttnUpBlock2D", "AttnUpBlock2D", "UpBlock2D"),
+        attention_head_dim=8,
+    ).to(device)
+
+    class_cond = SpatialClassConditioner(
+        num_classes=len(class_to_idx),
+        emb_dim=class_emb_channels,
+        height=latent_hw[0],
+        width=latent_hw[1],
+    ).to(device)
+
+    optimizer = torch.optim.AdamW(
+        list(model.parameters()) + list(class_cond.parameters()),
+        lr=4e-5,
+        weight_decay=1e-4,
+    )
+
+    return model, class_cond, optimizer, class_to_idx
+
+
+def load_checkpoint(ckpt_path, device):
+    model, class_cond, optimizer, class_to_idx = instantiate_model_and_optimizer(ckpt_path, device)
+
+    ckpt = torch.load(ckpt_path, map_location=device)
+    model.load_state_dict(ckpt["model"])
+    class_cond.load_state_dict(ckpt["class_cond"])
+    optimizer.load_state_dict(ckpt["optimizer"])
+    epoch = ckpt["epoch"]
+    train_loss = ckpt["train_loss"]
+    val_loss = ckpt["val_loss"]
+
+    print(f"Loaded checkpoint from epoch {epoch} with train_loss={train_loss:.6f} and val_loss={val_loss:.6f}")
+
+    return model, class_cond, optimizer, class_to_idx
+
+
+def sample_heatmap(
+        model, 
+        scheduler, 
+        class_cond, 
+        vae, 
+        class_labels, 
+        image_latents, 
+        device,
+    ):
+
+    class_map = class_cond(class_labels)
+    sampled_latent = torch.randn_like(image_latents)
+
+    for t in scheduler.timesteps:
+        model_input = torch.cat([sampled_latent, image_latents, class_map], dim=1)
+        pred = model(model_input, t).sample
+        sampled_latent = scheduler.step(pred, t, sampled_latent).prev_sample
+
+    # Decode sampled latent
+    reconstructed_heatmap = vae.decode(sampled_latent / vae.config.scaling_factor).sample
+        
+    return reconstructed_heatmap
+
+
 def visualize_test_samples(vae, model, scheduler, class_cond, class_to_idx, test_ds, output_path: Path, scaling_factor, device: str = "cuda"):
     """
     Visualize test samples using the pre-trained VAE.
@@ -72,17 +149,16 @@ def visualize_test_samples(vae, model, scheduler, class_cond, class_to_idx, test
         original_image = vae.decode(batch_image_latents / scaling_factor).sample
         
         # Conditionally sample latent heatmap using DDPM
-        class_map = class_cond(batch_class_labels)
-        sampled_latent = torch.randn_like(batch_heatmap_latents)
-            
-        for t in tqdm(scheduler.timesteps, leave=False):
-            model_input = torch.cat([sampled_latent, batch_image_latents, class_map], dim=1)
-            pred = model(model_input, t).sample
-            sampled_latent = scheduler.step(pred, t, sampled_latent).prev_sample
-            
-        # Decode sampled latent
-        reconstructed_heatmap = vae.decode(sampled_latent / scaling_factor).sample
-        
+        reconstructed_heatmap = sample_heatmap(
+            model=model,
+            scheduler=scheduler,
+            class_cond=class_cond,
+            vae=vae,
+            class_labels=batch_class_labels,
+            image_latents=batch_image_latents,
+            device=device,
+        )
+
         output_grid = []
         for idx in range(min(num_samples, len(test_ds))):
             
@@ -164,33 +240,18 @@ def main():
     model_in_channels = heatmap_channels + image_channels + class_emb_channels
 
     vae = get_pretrained_vae(device=device)
-
-    model = UNet2DModel(
-        sample_size=(H, W),
-        in_channels=model_in_channels,
-        out_channels=heatmap_channels,
-        layers_per_block=2,
-        block_out_channels=(128, 256, 256, 512),
-        down_block_types=("DownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D", "AttnDownBlock2D"),
-        up_block_types=("AttnUpBlock2D", "AttnUpBlock2D", "AttnUpBlock2D", "UpBlock2D"),
-        attention_head_dim=8,
-    ).to(device)
-
-    class_cond = SpatialClassConditioner(
-        num_classes=len(classes),
-        emb_dim=class_emb_channels,
-        height=H,
-        width=W,
-    ).to(device)
+    model, class_cond, optimizer, class_to_idx = instantiate_model_and_optimizer(
+        device, 
+        class_to_idx=class_to_idx, 
+        heatmap_channels=heatmap_channels, 
+        image_channels=image_channels, 
+        class_emb_channels=class_emb_channels, 
+        latent_hw=(H, W))
 
 
     train_scheduler = DDPMScheduler(num_train_timesteps=num_train_timesteps)
     test_scheduler = DDPMScheduler(num_train_timesteps=num_test_timesteps)
-    optimizer = torch.optim.AdamW(
-        list(model.parameters()) + list(class_cond.parameters()),
-        lr=lr,
-        weight_decay=1e-4,
-    )
+
 
     visualize_test_samples(vae, model, test_scheduler, class_cond, class_to_idx, test_ds, save_dir / "initial_samples.jpg", vae.config.scaling_factor, device=device)
 
