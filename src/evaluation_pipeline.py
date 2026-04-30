@@ -37,6 +37,7 @@ def evaluation_pipeline(
         img_size: int = 512,
         dataset_step_size=100,
         max_in_context_pr_ooc=5,
+        num_evaluation_steps: int|None = None
         ) -> pd.DataFrame:
 
     """
@@ -113,7 +114,9 @@ def evaluation_pipeline(
 
 
     print("Iterating over dataloader and calculating scores...")
-    for batch in (bar := tqdm(dl, total=len(coco_ds))):
+    for i, batch in enumerate((bar := tqdm(dl, total=len(coco_ds)))):
+        if num_evaluation_steps is not None and i >= num_evaluation_steps:
+            break
         batch = cast(BATCH_TYPE, batch)
         imgs, cats, boxes, labels, dataset_indices = batch
 
@@ -289,31 +292,34 @@ def mean_heatmap_evaluation_pipeline(
         model_name: str, 
         heatmap_pred_fn: Callable[[torch.Tensor, list[str]], torch.Tensor], 
         img_size: int,
-        device: str):
+        batch_size: int = 64,
+        device: str = "cuda",
+        num_evaluation_steps: int|None = None):
     """
     This is an example on how to use the evaluation pipeline with a dummy heatmap
     prediction function and the mean_heatmap_score_fn as the batch score function.
     
     """
-    save_path = Path(f"evaluation_results") / f"{model_name}_summary.csv"
+    save_path = Path(f"evaluation_results") / f"{model_name}_results.csv"
     save_path.parent.mkdir(exist_ok=True, parents=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     calculate_score_fn = get_heatmap_model_evaluation_fn(heatmap_pred_fn, device, mean_heatmap_score_fn)
     output_df = evaluation_pipeline(
         calculate_score_fn, 
-        batch_size=64,
+        batch_size=batch_size,
         img_size=img_size,
         dataset_step_size=100,
-        max_in_context_pr_ooc=5
+        max_in_context_pr_ooc=5,
+        num_evaluation_steps=num_evaluation_steps
     )
-    print("Summarizing results...")
-    summary_df = summarize_results(output_df)
+    # print("Summarizing results...")
+    # summary_df = summarize_results(output_df)
 
-    print("Summary of results:")
-    print(summary_df)
-    summary_df.to_csv(save_path)
-    print(f"Summary saved to {save_path}")
+    # print("Summary of results:")
+    # print(summary_df)
+    output_df.to_csv(save_path)
+    print(f"Results saved to {save_path}")
 
 
 # if __name__ == "__main__":
