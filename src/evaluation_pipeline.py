@@ -316,10 +316,18 @@ def mean_heatmap_evaluation_pipeline(
     # print("Summarizing results...")
     # summary_df = summarize_results(output_df)
 
+<<<<<<< ours
     # print("Summary of results:")
     # print(summary_df)
     output_df.to_csv(save_path)
     print(f"Results saved to {save_path}")
+=======
+    print("Summary of results:")
+    print(summary_df)
+    summary_df.to_csv(save_path)
+    print(f"Summary saved to {save_path}")
+    output_df.to_csv(Path(f"evaluation_results") / f"{model_name}_df.csv")
+>>>>>>> theirs
 
 
 # if __name__ == "__main__":

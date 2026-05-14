@@ -3,7 +3,8 @@ import torch
 from src.train import load_trained_heatmap_module
 from src.evaluation_pipeline import mean_heatmap_evaluation_pipeline
 
-ckpt_path = "runs/model4/version_21/checkpoints/last.ckpt"
+# ckpt_path = "runs/model4/version_21/checkpoints/last.ckpt"
+ckpt_path = "runs/model4/version_21/checkpoints/005-0.0877.ckpt"
 model = load_trained_heatmap_module(ckpt_path, 'cuda')
 # torch.load()
 def heatmap_pred_fn(images, cats):
